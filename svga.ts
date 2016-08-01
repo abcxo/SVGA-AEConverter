@@ -7,6 +7,7 @@
 
 declare let app: AE.App;
 declare let $: any;
+declare let Matrix: any;
 
 namespace AE {
 
@@ -30,6 +31,8 @@ namespace AE {
     export interface AVLayer {
         source: Source;
         transform: Transform;
+        width: number;
+        height: number;
     }
 
     export interface Source {
@@ -62,17 +65,27 @@ namespace SVGA {
         path: File;
     }
 
+    interface Matrix2D {
+        a: number;
+        b: number;
+        c: number;
+        d: number;
+        tx: number;
+        ty: number;
+    }
+
     interface Layer {
         name: string;
         values: {
             alpha: number[],
+            matrix: Matrix2D[],
         };
     }
 
     export class Converter {
 
-        app: AE.App;
-        proj: Project;
+        app: AE.App = undefined;
+        proj: Project = undefined;
         res: Resource[] = [];
         layers: Layer[] = [];
 
@@ -111,7 +124,8 @@ namespace SVGA {
                 this.layers.push({
                     name: element.source.name,
                     values: {
-                        alpha: this.requestValue(element.transform.opacity)
+                        alpha: this.requestValue(element.transform.opacity),
+                        matrix: this.requestMatrix(element.transform, element.width, element.height),
                     }
                 })
             }
@@ -126,8 +140,52 @@ namespace SVGA {
             return value;
         }
 
+        requestMatrix(transform: AE.Transform, width: number, height: number): Matrix2D[] {
+            let value: Matrix2D[] = [];
+            let step = 1.0 / this.proj.frameRate;
+            for (var cTime = 0.0; cTime < step * this.proj.frameCount; cTime += step) {
+                let rotation = transform["Rotation"].valueAtTime(cTime, true);
+                let sx = transform["Scale"].valueAtTime(cTime, true)[0] / 100.0;
+                let sy = transform["Scale"].valueAtTime(cTime, true)[1] / 100.0;
+                let tx = transform["Position"].valueAtTime(cTime, true)[0];
+                let ty = transform["Position"].valueAtTime(cTime, true)[1];
+                let matrix = new Matrix();
+                matrix.reset().rotate(rotation).scale(sx, sy);
+                this.convertMatrix(matrix, tx, ty, 0, 0, width, height);
+                value.push({
+                    a: matrix.props[0],
+                    b: matrix.props[1],
+                    c: matrix.props[4],
+                    d: matrix.props[5],
+                    tx: matrix.props[12],
+                    ty: matrix.props[13],
+                });
+            }
+            return value;
+        }
+
+        convertMatrix(matrix: any, mtx: number, mty: number , x: number, y: number, width: number, height: number) {
+            let a = matrix.props[0];
+            let b = matrix.props[1];
+            let c = matrix.props[4];
+            let d = matrix.props[5];
+            let tx = matrix.props[12];
+            let ty = matrix.props[13];
+            let llx = a * x + c * y + tx;
+            let lrx = a * (x + width) + c * y + tx;
+            let lbx = a * x + c * (y + height) + tx;
+            let rbx = a * (x + width) + c * (y + height) + tx;
+            let lly = b * x + d * y + ty;
+            let lry = b * (x + width) + d * y + ty;
+            let lby = b * x + d * (y + height) + ty;
+            let rby = b * (x + width) + d * (y + height) + ty;
+            let nx = Math.min(lbx, rbx, llx, lrx);
+            let ny = Math.min(lby, rby, lly, lry);
+            matrix.translate(mtx - nx / 2.0, mty - ny / 2.0);
+        }
+
     }
 }
 
 let converter = new SVGA.Converter(app);
-$.write(converter.layers[0].values.alpha);
+$.write(converter.layers[71].values.matrix[0].a);
