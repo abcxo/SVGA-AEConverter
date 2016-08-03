@@ -16,7 +16,7 @@ var SVGA;
             this.app = app;
             this.loadProj();
             this.loadRes(app.project.activeItem.layers, app.project.activeItem.layers.length);
-            this.loadLayer(app.project.activeItem.layers, app.project.activeItem.layers.length);
+            this.loadLayer(app.project.activeItem.layers, app.project.activeItem.layers.length, undefined);
         }
         Converter.prototype.loadProj = function () {
             this.proj = {
@@ -30,6 +30,9 @@ var SVGA;
         Converter.prototype.loadRes = function (layers, numLayers) {
             for (var i = 1; i <= layers.length; i++) {
                 var element = layers[i];
+                if (element.enabled === false) {
+                    continue;
+                }
                 if (element.source && element.source.file) {
                     this.res.push({
                         name: element.source.name,
@@ -41,23 +44,53 @@ var SVGA;
                 }
             }
         };
-        Converter.prototype.loadLayer = function (layers, numLayers) {
+        Converter.prototype.loadLayer = function (layers, numLayers, parentValues) {
             for (var i = 1; i <= numLayers; i++) {
                 var element = layers[i];
+                if (element.enabled === false) {
+                    continue;
+                }
                 if (element.source && element.source.file) {
-                    this.layers.push({
-                        name: element.source.name,
-                        values: {
-                            alpha: this.requestAlpha(element.transform.opacity),
-                            layout: this.requestLayout(element.width, element.height),
-                            matrix: this.requestMatrix(element.transform, element.width, element.height),
-                        }
-                    });
+                    if (parentValues) {
+                        this.layers.push({
+                            name: element.source.name,
+                            values: this.concatValues({
+                                alpha: this.requestAlpha(element.transform.opacity),
+                                layout: this.requestLayout(element.width, element.height),
+                                matrix: this.requestMatrix(element.transform, element.width, element.height),
+                            }, parentValues),
+                        });
+                    }
+                    else {
+                        this.layers.push({
+                            name: element.source.name,
+                            values: {
+                                alpha: this.requestAlpha(element.transform.opacity),
+                                layout: this.requestLayout(element.width, element.height),
+                                matrix: this.requestMatrix(element.transform, element.width, element.height),
+                            }
+                        });
+                    }
                 }
                 else if (element.source.numLayers > 0) {
-                    this.loadLayer(element.source.layers, element.source.numLayers);
+                    this.loadLayer(element.source.layers, element.source.numLayers, {
+                        alpha: this.requestAlpha(element.transform.opacity),
+                        layout: this.requestLayout(element.width, element.height),
+                        matrix: this.requestMatrix(element.transform, element.width, element.height),
+                    });
                 }
             }
+        };
+        Converter.prototype.concatValues = function (a, b) {
+            for (var index = 0; index < a.length; index++) {
+                if (b[index].alpha !== undefined) {
+                    a[index].alpha = a[index].alpha * b[index].alpha;
+                }
+                if (b[index].alpha !== undefined) {
+                    a[index].alpha = a[index].alpha * b[index].alpha;
+                }
+            }
+            return a;
         };
         Converter.prototype.requestAlpha = function (prop) {
             var value = [];
@@ -79,7 +112,7 @@ var SVGA;
                 var tx = transform["Position"].valueAtTime(cTime, true)[0];
                 var ty = transform["Position"].valueAtTime(cTime, true)[1];
                 var matrix = new Matrix();
-                matrix.reset().rotate(rotation).scale(sx, sy);
+                matrix.reset().rotate(rotation * Math.PI / 180).scale(sx, sy);
                 this.convertMatrix(matrix, ax, ay, sx, sy, tx, ty);
                 value.push({
                     a: matrix.props[0],

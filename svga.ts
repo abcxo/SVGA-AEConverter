@@ -31,6 +31,7 @@ namespace AE {
     }
 
     export interface AVLayer {
+        enabled: boolean;
         source: Source;
         transform: Transform;
         width: number;
@@ -105,7 +106,7 @@ namespace SVGA {
             this.app = app;
             this.loadProj();
             this.loadRes(app.project.activeItem.layers, app.project.activeItem.layers.length);
-            this.loadLayer(app.project.activeItem.layers, app.project.activeItem.layers.length);
+            this.loadLayer(app.project.activeItem.layers, app.project.activeItem.layers.length, undefined);
         }
 
         loadProj() {
@@ -121,6 +122,9 @@ namespace SVGA {
         loadRes(layers: AE.AVLayer[], numLayers: number) {
             for (var i = 1; i <= layers.length; i++) {
                 var element = layers[i];
+                if (element.enabled === false) {
+                    continue;
+                }
                 if (element.source && element.source.file) {
                     this.res.push({
                         name: element.source.name,
@@ -133,23 +137,54 @@ namespace SVGA {
             }
         }
 
-        loadLayer(layers: AE.AVLayer[], numLayers: number) {
+        loadLayer(layers: AE.AVLayer[], numLayers: number, parentValues: any) {
             for (var i = 1; i <= numLayers; i++) {
                 var element = layers[i];
+                if (element.enabled === false) {
+                    continue;
+                }
                 if (element.source && element.source.file) {
-                    this.layers.push({
-                        name: element.source.name,
-                        values: {
-                            alpha: this.requestAlpha(element.transform.opacity),
-                            layout: this.requestLayout(element.width, element.height),
-                            matrix: this.requestMatrix(element.transform, element.width, element.height),
-                        }
-                    })
+                    if (parentValues) {
+                        this.layers.push({
+                            name: element.source.name,
+                            values: this.concatValues({
+                                alpha: this.requestAlpha(element.transform.opacity),
+                                layout: this.requestLayout(element.width, element.height),
+                                matrix: this.requestMatrix(element.transform, element.width, element.height),
+                            }, parentValues),
+                        });
+                    }
+                    else {
+                        this.layers.push({
+                            name: element.source.name,
+                            values: {
+                                alpha: this.requestAlpha(element.transform.opacity),
+                                layout: this.requestLayout(element.width, element.height),
+                                matrix: this.requestMatrix(element.transform, element.width, element.height),
+                            }
+                        });
+                    }
                 }
                 else if (element.source.numLayers > 0) {
-                    this.loadLayer(element.source.layers, element.source.numLayers);
+                    this.loadLayer(element.source.layers, element.source.numLayers, {
+                        alpha: this.requestAlpha(element.transform.opacity),
+                        layout: this.requestLayout(element.width, element.height),
+                        matrix: this.requestMatrix(element.transform, element.width, element.height),
+                    });
                 }
             }
+        }
+
+        concatValues(a: any, b: any): any {
+            for (var index = 0; index < a.length; index++) {
+                if (b[index].alpha !== undefined) {
+                    a[index].alpha = a[index].alpha * b[index].alpha;
+                }
+                if (b[index].alpha !== undefined) {
+                    a[index].alpha = a[index].alpha * b[index].alpha;
+                }
+            }
+            return a;
         }
 
         requestAlpha(prop: AE.KeyframeValues): any[] {
@@ -173,7 +208,7 @@ namespace SVGA {
                 let tx = transform["Position"].valueAtTime(cTime, true)[0];
                 let ty = transform["Position"].valueAtTime(cTime, true)[1];
                 let matrix = new Matrix();
-                matrix.reset().rotate(rotation).scale(sx, sy);
+                matrix.reset().rotate(rotation * Math.PI / 180).scale(sx, sy);
                 this.convertMatrix(matrix, ax, ay, sx, sy, tx, ty);
                 value.push({
                     a: matrix.props[0],
