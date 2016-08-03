@@ -14,7 +14,7 @@ var SVGA;
             this.layers = [];
             this.app = app;
             this.loadProj();
-            this.loadRes();
+            this.loadRes(app.project.activeItem.layers);
             this.loadLayer();
         }
         Converter.prototype.loadProj = function () {
@@ -23,17 +23,21 @@ var SVGA;
                 width: this.app.project.activeItem.width,
                 height: this.app.project.activeItem.height,
                 frameRate: this.app.project.activeItem.frameRate,
-                frameCount: this.app.project.activeItem.frameRate * this.app.project.activeItem.duration
+                frameCount: this.app.project.activeItem.frameRate * this.app.project.activeItem.duration,
             };
         };
-        Converter.prototype.loadRes = function () {
-            var layers = this.app.project.activeItem.layers;
+        Converter.prototype.loadRes = function (layers) {
             for (var i = 1; i <= layers.length; i++) {
                 var element = layers[i];
-                this.res.push({
-                    name: element.source.name,
-                    path: element.source.path
-                });
+                if (element.source && element.source.file) {
+                    this.res.push({
+                        name: element.source.name,
+                        path: element.source.file.fsName,
+                    });
+                }
+                else if (element.source.numLayers > 0) {
+                    this.loadRes(element.source.layers);
+                }
             }
         };
         Converter.prototype.loadLayer = function () {
@@ -44,7 +48,7 @@ var SVGA;
                     name: element.source.name,
                     values: {
                         alpha: this.requestValue(element.transform.opacity),
-                        matrix: this.requestMatrix(element.transform, element.width, element.height)
+                        matrix: this.requestMatrix(element.transform, element.width, element.height),
                     }
                 });
             }
@@ -75,7 +79,7 @@ var SVGA;
                     c: matrix.props[4],
                     d: matrix.props[5],
                     tx: matrix.props[12],
-                    ty: matrix.props[13]
+                    ty: matrix.props[13],
                 });
             }
             return value;
@@ -102,6 +106,30 @@ var SVGA;
         return Converter;
     }());
     SVGA.Converter = Converter;
+    var Writer = (function () {
+        function Writer(converter) {
+            this.outPath = app.project.file.path + "/svga_works";
+            this.converter = converter;
+        }
+        Writer.prototype.write = function () {
+            this.createOutputDirectories();
+            this.copyImages();
+        };
+        Writer.prototype.createOutputDirectories = function () {
+            new Folder(this.outPath).create();
+            new Folder(this.outPath + "/images").create();
+        };
+        Writer.prototype.copyImages = function () {
+            for (var index = 0; index < this.converter.res.length; index++) {
+                var element = this.converter.res[index];
+                var _File = File;
+                (new _File(element.path)).copy(new _File(this.outPath + "/images/" + element.name));
+            }
+        };
+        return Writer;
+    }());
+    SVGA.Writer = Writer;
 })(SVGA || (SVGA = {}));
 var converter = new SVGA.Converter(app);
-$.write(converter.layers[71].values.matrix[0].a);
+var writer = new SVGA.Writer(converter);
+writer.write();

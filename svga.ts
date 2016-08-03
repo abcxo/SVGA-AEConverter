@@ -5,9 +5,10 @@
  * Env: After Effects CC 2015
  */
 
-declare let app: AE.App;
+declare let app: any;
 declare let $: any;
 declare let Matrix: any;
+declare let Folder: any;
 
 namespace AE {
 
@@ -37,7 +38,9 @@ namespace AE {
 
     export interface Source {
         name: string;
-        path: File;
+        file: File;
+        layers: AVLayer[];
+        numLayers: number;
     }
 
     export interface Transform {
@@ -62,7 +65,7 @@ namespace SVGA {
 
     interface Resource {
         name: string;
-        path: File;
+        path: string;
     }
 
     interface Matrix2D {
@@ -92,7 +95,7 @@ namespace SVGA {
         constructor(app: AE.App) {
             this.app = app;
             this.loadProj();
-            this.loadRes();
+            this.loadRes(app.project.activeItem.layers);
             this.loadLayer();
         }
 
@@ -106,14 +109,18 @@ namespace SVGA {
             }
         }
 
-        loadRes() {
-            var layers = this.app.project.activeItem.layers;
+        loadRes(layers: AE.AVLayer[]) {
             for (var i = 1; i <= layers.length; i++) {
                 var element = layers[i];
-                this.res.push({
-                    name: element.source.name,
-                    path: element.source.path,
-                })
+                if (element.source && element.source.file) {
+                    this.res.push({
+                        name: element.source.name,
+                        path: (element.source.file as any).fsName,
+                    })
+                }
+                else if (element.source.numLayers > 0) {
+                    this.loadRes(element.source.layers);
+                }
             }
         }
 
@@ -164,7 +171,7 @@ namespace SVGA {
             return value;
         }
 
-        convertMatrix(matrix: any, mtx: number, mty: number , x: number, y: number, width: number, height: number) {
+        convertMatrix(matrix: any, mtx: number, mty: number, x: number, y: number, width: number, height: number) {
             let a = matrix.props[0];
             let b = matrix.props[1];
             let c = matrix.props[4];
@@ -185,7 +192,38 @@ namespace SVGA {
         }
 
     }
+
+    export class Writer {
+
+        converter: Converter;
+        outPath: string = app.project.file.path + "/svga_works";
+
+        constructor(converter: Converter) {
+            this.converter = converter;
+        }
+
+        write() {
+            this.createOutputDirectories();
+            this.copyImages();
+        }
+
+        createOutputDirectories() {
+            new Folder(this.outPath).create();
+            new Folder(this.outPath + "/images").create();
+        }
+
+        copyImages() {
+            for (var index = 0; index < this.converter.res.length; index++) {
+                var element = this.converter.res[index];
+                let _File = File as any;
+                (new _File(element.path)).copy(new _File(this.outPath + "/images/" + element.name));   
+            }
+        }
+
+    }
+
 }
 
 let converter = new SVGA.Converter(app);
-$.write(converter.layers[71].values.matrix[0].a);
+let writer = new SVGA.Writer(converter);
+writer.write()

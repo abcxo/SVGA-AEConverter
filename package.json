@@ -1,0 +1,19 @@
+{
+  "name": "svga-aeconverter",
+  "version": "1.0.0",
+  "description": "",
+  "main": "svga.js",
+  "scripts": {
+    "start": "tsc svga.ts --target ES5 \n gulp build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://code.yy.com/ued/SVGA-AEConverter.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "gulp": "latest",
+    "gulp-concat": "latest"
+  }
+}
