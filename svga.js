@@ -3,6 +3,7 @@
  * Date: 2016.08.01
  * Dev: TypeScript 1.8
  * Env: After Effects CC 2015
+ * Build: npm install & npm start
  */
 var SVGA;
 (function (SVGA) {
@@ -14,8 +15,8 @@ var SVGA;
             this.layers = [];
             this.app = app;
             this.loadProj();
-            this.loadRes(app.project.activeItem.layers);
-            this.loadLayer();
+            this.loadRes(app.project.activeItem.layers, app.project.activeItem.layers.length);
+            this.loadLayer(app.project.activeItem.layers, app.project.activeItem.layers.length);
         }
         Converter.prototype.loadProj = function () {
             this.proj = {
@@ -26,7 +27,7 @@ var SVGA;
                 frameCount: this.app.project.activeItem.frameRate * this.app.project.activeItem.duration,
             };
         };
-        Converter.prototype.loadRes = function (layers) {
+        Converter.prototype.loadRes = function (layers, numLayers) {
             for (var i = 1; i <= layers.length; i++) {
                 var element = layers[i];
                 if (element.source && element.source.file) {
@@ -36,21 +37,25 @@ var SVGA;
                     });
                 }
                 else if (element.source.numLayers > 0) {
-                    this.loadRes(element.source.layers);
+                    this.loadRes(element.source.layers, element.source.numLayers);
                 }
             }
         };
-        Converter.prototype.loadLayer = function () {
-            var layers = this.app.project.activeItem.layers;
-            for (var i = 1; i <= layers.length; i++) {
+        Converter.prototype.loadLayer = function (layers, numLayers) {
+            for (var i = 1; i <= numLayers; i++) {
                 var element = layers[i];
-                this.layers.push({
-                    name: element.source.name,
-                    values: {
-                        alpha: this.requestValue(element.transform.opacity),
-                        matrix: this.requestMatrix(element.transform, element.width, element.height),
-                    }
-                });
+                if (element.source && element.source.file) {
+                    this.layers.push({
+                        name: element.source.name,
+                        values: {
+                            alpha: this.requestValue(element.transform.opacity),
+                            matrix: this.requestMatrix(element.transform, element.width, element.height),
+                        }
+                    });
+                }
+                else if (element.source.numLayers > 0) {
+                    this.loadLayer(element.source.layers, element.source.numLayers);
+                }
             }
         };
         Converter.prototype.requestValue = function (prop) {
@@ -114,17 +119,41 @@ var SVGA;
         Writer.prototype.write = function () {
             this.createOutputDirectories();
             this.copyImages();
+            this.writeSpec();
         };
         Writer.prototype.createOutputDirectories = function () {
             new Folder(this.outPath).create();
-            new Folder(this.outPath + "/images").create();
         };
         Writer.prototype.copyImages = function () {
+            var _File = File;
             for (var index = 0; index < this.converter.res.length; index++) {
                 var element = this.converter.res[index];
-                var _File = File;
-                (new _File(element.path)).copy(new _File(this.outPath + "/images/" + element.name));
+                (new _File(element.path)).copy(new _File(this.outPath + "/" + element.name));
             }
+        };
+        Writer.prototype.writeSpec = function () {
+            var _File = File;
+            var spec = {
+                ver: "1.0.1",
+                movie: {
+                    viewBox: {
+                        width: this.converter.proj.width,
+                        height: this.converter.proj.height,
+                    },
+                    fps: this.converter.proj.frameRate,
+                    frames: this.converter.proj.frameCount * this.converter.proj.frameRate,
+                },
+                images: {},
+                sprites: {},
+            };
+            var movieFile = new _File(this.outPath + "/movie.spec");
+            if (movieFile.exists) {
+                movieFile.remove();
+            }
+            movieFile.encoding = "UTF-8";
+            movieFile.open('e', "TEXT", "????");
+            movieFile.write(JSON.stringify(spec));
+            movieFile.close();
         };
         return Writer;
     }());

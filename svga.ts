@@ -3,6 +3,7 @@
  * Date: 2016.08.01
  * Dev: TypeScript 1.8
  * Env: After Effects CC 2015
+ * Build: npm install & npm start
  */
 
 declare let app: any;
@@ -95,8 +96,8 @@ namespace SVGA {
         constructor(app: AE.App) {
             this.app = app;
             this.loadProj();
-            this.loadRes(app.project.activeItem.layers);
-            this.loadLayer();
+            this.loadRes(app.project.activeItem.layers, app.project.activeItem.layers.length);
+            this.loadLayer(app.project.activeItem.layers, app.project.activeItem.layers.length);
         }
 
         loadProj() {
@@ -109,7 +110,7 @@ namespace SVGA {
             }
         }
 
-        loadRes(layers: AE.AVLayer[]) {
+        loadRes(layers: AE.AVLayer[], numLayers: number) {
             for (var i = 1; i <= layers.length; i++) {
                 var element = layers[i];
                 if (element.source && element.source.file) {
@@ -119,22 +120,26 @@ namespace SVGA {
                     })
                 }
                 else if (element.source.numLayers > 0) {
-                    this.loadRes(element.source.layers);
+                    this.loadRes(element.source.layers, element.source.numLayers);
                 }
             }
         }
 
-        loadLayer() {
-            var layers = this.app.project.activeItem.layers;
-            for (var i = 1; i <= layers.length; i++) {
+        loadLayer(layers: AE.AVLayer[], numLayers: number) {
+            for (var i = 1; i <= numLayers; i++) {
                 var element = layers[i];
-                this.layers.push({
-                    name: element.source.name,
-                    values: {
-                        alpha: this.requestValue(element.transform.opacity),
-                        matrix: this.requestMatrix(element.transform, element.width, element.height),
-                    }
-                })
+                if (element.source && element.source.file) {
+                    this.layers.push({
+                        name: element.source.name,
+                        values: {
+                            alpha: this.requestValue(element.transform.opacity),
+                            matrix: this.requestMatrix(element.transform, element.width, element.height),
+                        }
+                    })
+                }
+                else if (element.source.numLayers > 0) {
+                    this.loadLayer(element.source.layers, element.source.numLayers);
+                }
             }
         }
 
@@ -205,19 +210,48 @@ namespace SVGA {
         write() {
             this.createOutputDirectories();
             this.copyImages();
+            this.writeSpec();
         }
 
         createOutputDirectories() {
             new Folder(this.outPath).create();
-            new Folder(this.outPath + "/images").create();
         }
 
         copyImages() {
+            let _File = File as any;
             for (var index = 0; index < this.converter.res.length; index++) {
                 var element = this.converter.res[index];
-                let _File = File as any;
-                (new _File(element.path)).copy(new _File(this.outPath + "/images/" + element.name));   
+                (new _File(element.path)).copy(new _File(this.outPath + "/" + element.name));
             }
+        }
+
+        writeSpec() {
+            let _File = File as any;
+            let spec = {
+                ver: "1.0.1",
+                movie: {
+                    viewBox: {
+                        width: this.converter.proj.width,
+                        height: this.converter.proj.height,
+                    },
+                    fps: this.converter.proj.frameRate,
+                    frames: this.converter.proj.frameCount * this.converter.proj.frameRate,
+                },
+                images: {
+
+                },
+                sprites: {
+
+                },
+            }
+            let movieFile = new _File(this.outPath + "/movie.spec");
+            if (movieFile.exists) {
+                movieFile.remove();
+            }
+            movieFile.encoding = "UTF-8";
+            movieFile.open('e', "TEXT", "????");
+            movieFile.write(JSON.stringify(spec));
+            movieFile.close();
         }
 
     }
