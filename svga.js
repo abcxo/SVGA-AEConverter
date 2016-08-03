@@ -48,7 +48,8 @@ var SVGA;
                     this.layers.push({
                         name: element.source.name,
                         values: {
-                            alpha: this.requestValue(element.transform.opacity),
+                            alpha: this.requestAlpha(element.transform.opacity),
+                            layout: this.requestLayout(element.width, element.height),
                             matrix: this.requestMatrix(element.transform, element.width, element.height),
                         }
                     });
@@ -58,11 +59,11 @@ var SVGA;
                 }
             }
         };
-        Converter.prototype.requestValue = function (prop) {
+        Converter.prototype.requestAlpha = function (prop) {
             var value = [];
             var step = 1.0 / this.proj.frameRate;
             for (var cTime = 0.0; cTime < step * this.proj.frameCount; cTime += step) {
-                value.push(prop.valueAtTime(cTime, true));
+                value.push(prop.valueAtTime(cTime, true) / 100.0);
             }
             return value;
         };
@@ -71,13 +72,15 @@ var SVGA;
             var step = 1.0 / this.proj.frameRate;
             for (var cTime = 0.0; cTime < step * this.proj.frameCount; cTime += step) {
                 var rotation = transform["Rotation"].valueAtTime(cTime, true);
+                var ax = transform["Anchor Point"].valueAtTime(cTime, true)[0];
+                var ay = transform["Anchor Point"].valueAtTime(cTime, true)[1];
                 var sx = transform["Scale"].valueAtTime(cTime, true)[0] / 100.0;
                 var sy = transform["Scale"].valueAtTime(cTime, true)[1] / 100.0;
                 var tx = transform["Position"].valueAtTime(cTime, true)[0];
                 var ty = transform["Position"].valueAtTime(cTime, true)[1];
                 var matrix = new Matrix();
                 matrix.reset().rotate(rotation).scale(sx, sy);
-                this.convertMatrix(matrix, tx, ty, 0, 0, width, height);
+                this.convertMatrix(matrix, ax, ay, sx, sy, tx, ty);
                 value.push({
                     a: matrix.props[0],
                     b: matrix.props[1],
@@ -89,24 +92,16 @@ var SVGA;
             }
             return value;
         };
-        Converter.prototype.convertMatrix = function (matrix, mtx, mty, x, y, width, height) {
-            var a = matrix.props[0];
-            var b = matrix.props[1];
-            var c = matrix.props[4];
-            var d = matrix.props[5];
-            var tx = matrix.props[12];
-            var ty = matrix.props[13];
-            var llx = a * x + c * y + tx;
-            var lrx = a * (x + width) + c * y + tx;
-            var lbx = a * x + c * (y + height) + tx;
-            var rbx = a * (x + width) + c * (y + height) + tx;
-            var lly = b * x + d * y + ty;
-            var lry = b * (x + width) + d * y + ty;
-            var lby = b * x + d * (y + height) + ty;
-            var rby = b * (x + width) + d * (y + height) + ty;
-            var nx = Math.min(lbx, rbx, llx, lrx);
-            var ny = Math.min(lby, rby, lly, lry);
-            matrix.translate(mtx - nx / 2.0, mty - ny / 2.0);
+        Converter.prototype.requestLayout = function (width, height) {
+            var value = [];
+            var step = 1.0 / this.proj.frameRate;
+            for (var cTime = 0.0; cTime < step * this.proj.frameCount; cTime += step) {
+                value.push({ x: 0, y: 0, width: width, height: height });
+            }
+            return value;
+        };
+        Converter.prototype.convertMatrix = function (matrix, ax, ay, sx, sy, mtx, mty) {
+            matrix.translate(mtx - (ax * sx), mty - (ay * sy));
         };
         return Converter;
     }());
@@ -128,7 +123,7 @@ var SVGA;
             var _File = File;
             for (var index = 0; index < this.converter.res.length; index++) {
                 var element = this.converter.res[index];
-                (new _File(element.path)).copy(new _File(this.outPath + "/" + element.name));
+                (new _File(element.path)).copy(new _File(this.outPath + "/" + element.name.replace(/\.png/ig, "").replace(/ /ig, "") + ".png"));
             }
         };
         Writer.prototype.writeSpec = function () {
@@ -141,11 +136,40 @@ var SVGA;
                         height: this.converter.proj.height,
                     },
                     fps: this.converter.proj.frameRate,
-                    frames: this.converter.proj.frameCount * this.converter.proj.frameRate,
+                    frames: this.converter.proj.frameCount,
                 },
                 images: {},
-                sprites: {},
+                sprites: [],
             };
+            for (var index = 0; index < this.converter.res.length; index++) {
+                var element = this.converter.res[index];
+                spec.images[element.name.replace(/\.png/ig, "").replace(/ /ig, "")] = element.name.replace(/\.png/ig, "").replace(/ /ig, "");
+            }
+            for (var index = this.converter.layers.length - 1; index >= 0; index--) {
+                var element = this.converter.layers[index];
+                var frames_1 = [];
+                for (var index_1 = 0; index_1 < this.converter.proj.frameCount; index_1++) {
+                    var obj = {
+                        alpha: element.values.alpha[index_1],
+                        layout: element.values.layout[index_1],
+                        transform: element.values.matrix[index_1],
+                    };
+                    if (obj.alpha <= 0.0) {
+                        delete obj.alpha;
+                    }
+                    if (obj.layout.x == 0.0 && obj.layout.y == 0.0 && obj.layout.width == 0.0 && obj.layout.height == 0.0) {
+                        delete obj.layout;
+                    }
+                    if (obj.transform.a == 1.0 && obj.transform.b == 0.0 && obj.transform.c == 0.0 && obj.transform.d == 1.0 && obj.transform.tx == 0.0 && obj.transform.ty == 0.0) {
+                        delete obj.transform;
+                    }
+                    frames_1.push(obj);
+                }
+                spec.sprites.push({
+                    imageKey: element.name.replace(/\.png/ig, "").replace(/ /ig, ""),
+                    frames: frames_1,
+                });
+            }
             var movieFile = new _File(this.outPath + "/movie.spec");
             if (movieFile.exists) {
                 movieFile.remove();
