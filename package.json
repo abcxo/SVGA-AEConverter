@@ -4,7 +4,7 @@
   "description": "",
   "main": "svga.js",
   "scripts": {
-    "start": "tsc svga.ts --target ES5 \n gulp build \n gulp release"
+    "start": "tsc svga.ts --target ES5 & gulp build & gulp release"
   },
   "repository": {
     "type": "git",
@@ -17,5 +17,8 @@
     "gulp-concat": "latest",
     "gulp-uglify": "latest",
     "typescript": "^1.8.10"
+  },
+  "dependencies": {
+    "jszip": "^3.0.0"
   }
 }
