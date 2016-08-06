@@ -154,7 +154,7 @@ var SVGA;
                 var tx = transform["Position"].valueAtTime(cTime, true)[0];
                 var ty = transform["Position"].valueAtTime(cTime, true)[1];
                 var matrix = new Matrix();
-                matrix.reset().translate(-ax, -ay).rotate(-rotation * Math.PI / 180).scale(sx, sy);
+                matrix.reset().translate(-ax, -ay).scale(sx, sy).rotate(-rotation * Math.PI / 180);
                 matrix.translate(tx, ty);
                 value.push({
                     a: matrix.props[0],
