@@ -837,7 +837,7 @@ var SVGA;
             this.app = app;
             this.loadProj();
             this.loadRes(app.project.activeItem.layers, app.project.activeItem.layers.length);
-            this.loadLayer(app.project.activeItem.layers, app.project.activeItem.layers.length, undefined, undefined, undefined);
+            this.loadLayer(app.project.activeItem.layers, app.project.activeItem.layers.length, undefined, undefined);
         }
         Converter.prototype.loadProj = function () {
             this.proj = {

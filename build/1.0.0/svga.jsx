@@ -975,7 +975,7 @@ var SVGA;
                 var ty = transform["Position"].valueAtTime(cTime, true)[1];
                 var matrix = new Matrix();
                 matrix.reset().rotate(rotation * Math.PI / 180).scale(sx, sy);
-                this.convertMatrix(matrix, 0, 0, width, height, tx, ty);
+                this.convertMatrix(matrix, 0, 0, width, height, tx + (width / 2.0 - ax), ty + (height / 2.0 - ay));
                 value.push({
                     a: matrix.props[0],
                     b: matrix.props[1],
