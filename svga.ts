@@ -271,8 +271,8 @@ namespace SVGA {
                 let tx = transform["Position"].valueAtTime(cTime, true)[0];
                 let ty = transform["Position"].valueAtTime(cTime, true)[1];
                 let matrix = new Matrix();
-                matrix.reset().rotate(rotation * Math.PI / 180).scale(sx, sy);
-                this.convertMatrix(matrix, 0, 0, width, height, tx + (width / 2.0 - ax), ty + (height / 2.0 - ay));
+                matrix.reset().translate(-ax, -ay).rotate(-rotation * Math.PI / 180).scale(sx, sy);
+                matrix.translate(tx, ty);
                 value.push({
                     a: matrix.props[0],
                     b: matrix.props[1],
@@ -292,20 +292,6 @@ namespace SVGA {
                 value.push({ x: 0, y: 0, width: width, height: height });
             }
             return value;
-        }
-
-        convertMatrix(transform: any, x: number, y: number, width: number, height: number, mtx: number, mty: number) {
-            let llx = transform.props[0] * x + transform.props[4] * y + x;
-            let lrx = transform.props[0] * (x + width) + transform.props[4] * y + x;
-            let lbx = transform.props[0] * x + transform.props[4] * (y + height) + x;
-            let rbx = transform.props[0] * (x + width) + transform.props[4] * (y + height) + x;
-            let lly = transform.props[1] * x + transform.props[5] * y + y;
-            let lry = transform.props[1] * (x + width) + transform.props[5] * y + y;
-            let lby = transform.props[1] * x + transform.props[5] * (y + height) + y;
-            let rby = transform.props[1] * (x + width) + transform.props[5] * (y + height) + y;
-            let cx = (Math.min(llx, lrx, lbx, rbx) + Math.max(llx, lrx, lbx, rbx)) / 2.0;
-            let cy = (Math.min(lly, lry, lby, rby) + Math.max(lly, lry, lby, rby)) / 2.0;
-            transform.translate(mtx - cx, mty - cy);
         }
 
         requestMask(layer: AE.AVLayer): string[] {

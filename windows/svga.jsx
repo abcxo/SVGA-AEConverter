@@ -975,8 +975,8 @@ var SVGA;
                 var tx = transform["Position"].valueAtTime(cTime, true)[0];
                 var ty = transform["Position"].valueAtTime(cTime, true)[1];
                 var matrix = new Matrix();
-                matrix.reset().rotate(rotation * Math.PI / 180).scale(sx, sy);
-                this.convertMatrix(matrix, 0, 0, width, height, tx + (width / 2.0 - ax), ty + (height / 2.0 - ay));
+                matrix.reset().translate(-ax, -ay).rotate(-rotation * Math.PI / 180).scale(sx, sy);
+                matrix.translate(tx, ty);
                 value.push({
                     a: matrix.props[0],
                     b: matrix.props[1],
@@ -985,14 +985,6 @@ var SVGA;
                     tx: matrix.props[12],
                     ty: matrix.props[13],
                 });
-            }
-            return value;
-        };
-        Converter.prototype.requestLayout = function (width, height) {
-            var value = [];
-            var step = 1.0 / this.proj.frameRate;
-            for (var cTime = 0.0; cTime < step * this.proj.frameCount; cTime += step) {
-                value.push({ x: 0, y: 0, width: width, height: height });
             }
             return value;
         };
@@ -1008,6 +1000,14 @@ var SVGA;
             var cx = (Math.min(llx, lrx, lbx, rbx) + Math.max(llx, lrx, lbx, rbx)) / 2.0;
             var cy = (Math.min(lly, lry, lby, rby) + Math.max(lly, lry, lby, rby)) / 2.0;
             transform.translate(mtx - cx, mty - cy);
+        };
+        Converter.prototype.requestLayout = function (width, height) {
+            var value = [];
+            var step = 1.0 / this.proj.frameRate;
+            for (var cTime = 0.0; cTime < step * this.proj.frameCount; cTime += step) {
+                value.push({ x: 0, y: 0, width: width, height: height });
+            }
+            return value;
         };
         Converter.prototype.requestMask = function (layer) {
             if (layer.mask.numProperties > 0) {
@@ -1117,7 +1117,6 @@ var SVGA;
                             mergedLayers[leftIndex].values.mask.push(undefined);
                         }
                     }
-                    $.write(mergedLayers[0].values.alpha.length);
                     var replaceLayers = [];
                     var startInsertion = false;
                     for (var fIndex = 0; fIndex < this.layers.length; fIndex++) {
@@ -1143,7 +1142,7 @@ var SVGA;
                         }
                     }
                     this.layers = replaceLayers;
-                    // this.mergeLayers();
+                    this.mergeLayers();
                     return;
                 }
             }

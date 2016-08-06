@@ -154,8 +154,8 @@ var SVGA;
                 var tx = transform["Position"].valueAtTime(cTime, true)[0];
                 var ty = transform["Position"].valueAtTime(cTime, true)[1];
                 var matrix = new Matrix();
-                matrix.reset().rotate(rotation * Math.PI / 180).scale(sx, sy);
-                this.convertMatrix(matrix, 0, 0, width, height, tx + (width / 2.0 - ax), ty + (height / 2.0 - ay));
+                matrix.reset().translate(-ax, -ay).rotate(-rotation * Math.PI / 180).scale(sx, sy);
+                matrix.translate(tx, ty);
                 value.push({
                     a: matrix.props[0],
                     b: matrix.props[1],
@@ -174,19 +174,6 @@ var SVGA;
                 value.push({ x: 0, y: 0, width: width, height: height });
             }
             return value;
-        };
-        Converter.prototype.convertMatrix = function (transform, x, y, width, height, mtx, mty) {
-            var llx = transform.props[0] * x + transform.props[4] * y + x;
-            var lrx = transform.props[0] * (x + width) + transform.props[4] * y + x;
-            var lbx = transform.props[0] * x + transform.props[4] * (y + height) + x;
-            var rbx = transform.props[0] * (x + width) + transform.props[4] * (y + height) + x;
-            var lly = transform.props[1] * x + transform.props[5] * y + y;
-            var lry = transform.props[1] * (x + width) + transform.props[5] * y + y;
-            var lby = transform.props[1] * x + transform.props[5] * (y + height) + y;
-            var rby = transform.props[1] * (x + width) + transform.props[5] * (y + height) + y;
-            var cx = (Math.min(llx, lrx, lbx, rbx) + Math.max(llx, lrx, lbx, rbx)) / 2.0;
-            var cy = (Math.min(lly, lry, lby, rby) + Math.max(lly, lry, lby, rby)) / 2.0;
-            transform.translate(mtx - cx, mty - cy);
         };
         Converter.prototype.requestMask = function (layer) {
             if (layer.mask.numProperties > 0) {
@@ -296,7 +283,6 @@ var SVGA;
                             mergedLayers[leftIndex].values.mask.push(undefined);
                         }
                     }
-                    // $.write(mergedLayers[0].values.alpha.length);
                     var replaceLayers = [];
                     var startInsertion = false;
                     for (var fIndex = 0; fIndex < this.layers.length; fIndex++) {
