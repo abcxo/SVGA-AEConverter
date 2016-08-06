@@ -879,6 +879,7 @@ var SVGA;
                                 alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                                 layout: this.requestLayout(element.width, element.height),
                                 matrix: this.requestMatrix(element.transform, element.width, element.height),
+                                mask: this.requestMask(element),
                             }, element.width, element.height, parentInPoint, parentOutPoint),
                         });
                     }
@@ -889,6 +890,7 @@ var SVGA;
                                 alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                                 layout: this.requestLayout(element.width, element.height),
                                 matrix: this.requestMatrix(element.transform, element.width, element.height),
+                                mask: this.requestMask(element),
                             }
                         });
                     }
@@ -898,6 +900,7 @@ var SVGA;
                         alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                         layout: this.requestLayout(element.width, element.height),
                         matrix: this.requestMatrix(element.transform, element.width, element.height),
+                        mask: [this.requestMask(element)],
                     }, element.inPoint, element.outPoint);
                 }
             }
@@ -915,13 +918,14 @@ var SVGA;
             for (var aIndex = startIndex, bIndex = 0; bIndex < b.layout.length; aIndex++, bIndex++) {
                 c.layout[aIndex] = b.layout[bIndex];
             }
+            for (var aIndex = startIndex, bIndex = 0; bIndex < b.mask.length; aIndex++, bIndex++) {
+                c.mask[aIndex] = b.mask[bIndex];
+            }
             for (var aIndex = startIndex, bIndex = 0; bIndex < b.matrix.length && aIndex < a.matrix.length; aIndex++, bIndex++) {
                 var matrix = new Matrix();
                 matrix.reset();
-                // matrix.setTransform(a.matrix[aIndex].a, a.matrix[aIndex].b, 0, 0, a.matrix[aIndex].c, a.matrix[aIndex].d, 0, 0, 0, 0, 0, 0, a.matrix[aIndex].tx, a.matrix[aIndex].ty, 0, 0);
                 matrix.transform(b.matrix[bIndex].a, b.matrix[bIndex].b, 0, 0, b.matrix[bIndex].c, b.matrix[bIndex].d, 0, 0, 0, 0, 0, 0, b.matrix[bIndex].tx, b.matrix[bIndex].ty, 0, 0);
                 matrix.transform(a.matrix[aIndex].a, a.matrix[aIndex].b, 0, 0, a.matrix[aIndex].c, a.matrix[aIndex].d, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-                // this.convertMatrix(matrix, 0, 0, width, height, a.matrix[aIndex].tx, a.matrix[aIndex].ty);
                 c.matrix[aIndex] = {
                     a: matrix.props[0],
                     b: matrix.props[1],
@@ -935,6 +939,7 @@ var SVGA;
                 delete c.alpha[index];
                 delete c.layout[index];
                 delete c.matrix[index];
+                delete c.mask[index];
             }
             return c;
         };
@@ -1004,6 +1009,57 @@ var SVGA;
             var cy = (Math.min(lly, lry, lby, rby) + Math.max(lly, lry, lby, rby)) / 2.0;
             transform.translate(mtx - cx, mty - cy);
         };
+        Converter.prototype.requestMask = function (layer) {
+            if (layer.mask.numProperties > 0) {
+                for (var index = 0; index < layer.mask.numProperties; index++) {
+                    var masks = [];
+                    var maskElement = layer.mask(index + 1);
+                    var maskShape = maskElement.property('maskShape').value;
+                    var closed_1 = maskShape.closed;
+                    var inverted = maskElement.inverted;
+                    var mode = maskElement.maskMode;
+                    var values = [];
+                    var step = 1.0 / this.proj.frameRate;
+                    for (var cTime = 0.0; cTime < step * this.proj.frameCount; cTime += step) {
+                        var vertices = maskElement.property('maskShape').valueAtTime(cTime, true).vertices;
+                        var solidPath = '';
+                        var drawPath = '';
+                        var finalPath = '';
+                        if (inverted) {
+                            solidPath = 'M0,0 ';
+                            solidPath += ' h' + layer.width;
+                            solidPath += ' v' + layer.height;
+                            solidPath += ' h-' + layer.width;
+                            solidPath += ' v-' + layer.height + ' ';
+                        }
+                        var lastPoint = undefined;
+                        for (var index = 0; index < vertices.length; index++) {
+                            var currentPoint = vertices[index];
+                            if (lastPoint === undefined) {
+                                drawPath += " M" + Math.round(currentPoint[0]) + "," + Math.round(currentPoint[1]);
+                                lastPoint = currentPoint;
+                            }
+                            else {
+                                drawPath += " C" + Math.round(lastPoint[0]) + "," + Math.round(lastPoint[1]) + " " + Math.round(currentPoint[0]) + "," + Math.round(currentPoint[1]) + " " + Math.round(currentPoint[0]) + "," + Math.round(currentPoint[1]);
+                                lastPoint = currentPoint;
+                            }
+                        }
+                        if (closed_1) {
+                            drawPath += " C" + Math.round(lastPoint[0]) + "," + Math.round(lastPoint[1]) + " " + Math.round(vertices[0][0]) + "," + Math.round(vertices[0][1]) + " " + Math.round(vertices[0][0]) + "," + Math.round(vertices[0][1]);
+                        }
+                        if (inverted) {
+                            finalPath = solidPath + drawPath;
+                        }
+                        else {
+                            finalPath = drawPath;
+                        }
+                        masks.push(finalPath);
+                    }
+                    return masks;
+                }
+            }
+            return [];
+        };
         return Converter;
     }());
     SVGA.Converter = Converter;
@@ -1054,6 +1110,7 @@ var SVGA;
                         alpha: element.values.alpha[index_1],
                         layout: element.values.layout[index_1],
                         transform: element.values.matrix[index_1],
+                        clipPath: element.values.mask[index_1],
                     };
                     if (obj.alpha !== undefined && obj.alpha <= 0.0) {
                         delete obj.alpha;
@@ -1063,6 +1120,9 @@ var SVGA;
                     }
                     if (obj.transform !== undefined && (obj.transform.a == 1.0 && obj.transform.b == 0.0 && obj.transform.c == 0.0 && obj.transform.d == 1.0 && obj.transform.tx == 0.0 && obj.transform.ty == 0.0)) {
                         delete obj.transform;
+                    }
+                    if (obj.clipPath === undefined || typeof obj.clipPath !== "string" || obj.clipPath === "") {
+                        delete obj.clipPath;
                     }
                     frames_1.push(obj);
                 }

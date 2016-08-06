@@ -10,6 +10,7 @@ declare let app: any;
 declare let $: any;
 declare let Matrix: any;
 declare let Folder: any;
+declare let MaskMode: any;
 
 namespace AE {
 
@@ -38,6 +39,21 @@ namespace AE {
         height: number;
         inPoint: number;
         outPoint: number;
+        mask: Mask;
+    }
+
+    export interface Mask {
+        numProperties: number;
+    }
+
+    export interface MaskElement {
+        property(key: string): KeyframeValues;
+        inverted: boolean;
+        maskMode: number;
+    }
+
+    export interface MaskShape {
+        closed: boolean;
     }
 
     export interface Source {
@@ -52,6 +68,7 @@ namespace AE {
     }
 
     export interface KeyframeValues {
+        value: any;
         valueAtTime(time: number, bool: boolean): any;
     }
 
@@ -94,6 +111,7 @@ namespace SVGA {
             alpha: number[],
             layout: Rect2D[],
             matrix: Matrix2D[],
+            mask: string[],
         };
     }
 
@@ -153,6 +171,7 @@ namespace SVGA {
                                 alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                                 layout: this.requestLayout(element.width, element.height),
                                 matrix: this.requestMatrix(element.transform, element.width, element.height),
+                                mask: this.requestMask(element),
                             }, element.width, element.height, parentInPoint, parentOutPoint),
                         });
                     }
@@ -163,6 +182,7 @@ namespace SVGA {
                                 alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                                 layout: this.requestLayout(element.width, element.height),
                                 matrix: this.requestMatrix(element.transform, element.width, element.height),
+                                mask: this.requestMask(element),
                             }
                         });
                     }
@@ -172,6 +192,7 @@ namespace SVGA {
                         alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                         layout: this.requestLayout(element.width, element.height),
                         matrix: this.requestMatrix(element.transform, element.width, element.height),
+                        mask: [this.requestMask(element)],
                     }, element.inPoint, element.outPoint);
                 }
             }
@@ -184,19 +205,20 @@ namespace SVGA {
             if (startIndex < 0) {
                 startIndex = 0;
             }
-            for (let aIndex = startIndex, bIndex = 0; bIndex < b.alpha.length; aIndex++, bIndex++) {
+            for (let aIndex = startIndex, bIndex = 0; bIndex < b.alpha.length; aIndex++ , bIndex++) {
                 c.alpha[aIndex] = b.alpha[bIndex] * a.alpha[aIndex];
             }
-            for (let aIndex = startIndex, bIndex = 0; bIndex < b.layout.length; aIndex++, bIndex++) {
+            for (let aIndex = startIndex, bIndex = 0; bIndex < b.layout.length; aIndex++ , bIndex++) {
                 c.layout[aIndex] = b.layout[bIndex];
             }
-            for (let aIndex = startIndex, bIndex = 0; bIndex < b.matrix.length && aIndex < a.matrix.length; aIndex++, bIndex++) {
+            for (let aIndex = startIndex, bIndex = 0; bIndex < b.mask.length; aIndex++ , bIndex++) {
+                c.mask[aIndex] = b.mask[bIndex];
+            }
+            for (let aIndex = startIndex, bIndex = 0; bIndex < b.matrix.length && aIndex < a.matrix.length; aIndex++ , bIndex++) {
                 let matrix = new Matrix();
                 matrix.reset();
-                // matrix.setTransform(a.matrix[aIndex].a, a.matrix[aIndex].b, 0, 0, a.matrix[aIndex].c, a.matrix[aIndex].d, 0, 0, 0, 0, 0, 0, a.matrix[aIndex].tx, a.matrix[aIndex].ty, 0, 0);
                 matrix.transform(b.matrix[bIndex].a, b.matrix[bIndex].b, 0, 0, b.matrix[bIndex].c, b.matrix[bIndex].d, 0, 0, 0, 0, 0, 0, b.matrix[bIndex].tx, b.matrix[bIndex].ty, 0, 0);
                 matrix.transform(a.matrix[aIndex].a, a.matrix[aIndex].b, 0, 0, a.matrix[aIndex].c, a.matrix[aIndex].d, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-                // this.convertMatrix(matrix, 0, 0, width, height, a.matrix[aIndex].tx, a.matrix[aIndex].ty);
                 c.matrix[aIndex] = {
                     a: matrix.props[0],
                     b: matrix.props[1],
@@ -210,6 +232,7 @@ namespace SVGA {
                 delete c.alpha[index];
                 delete c.layout[index];
                 delete c.matrix[index];
+                delete c.mask[index];
             }
             return c;
         }
@@ -284,6 +307,58 @@ namespace SVGA {
             transform.translate(mtx - cx, mty - cy);
         }
 
+        requestMask(layer: AE.AVLayer): string[] {
+            if (layer.mask.numProperties > 0) {
+                for (var index = 0; index < layer.mask.numProperties; index++) {
+                    let masks: string[] = []
+                    let maskElement: AE.MaskElement = (layer.mask as any)(index + 1);
+                    let maskShape = maskElement.property('maskShape').value;
+                    let closed = maskShape.closed;
+                    let inverted = maskElement.inverted;
+                    let mode = maskElement.maskMode;
+                    let values: any[] = [];
+                    let step = 1.0 / this.proj.frameRate;
+                    for (var cTime = 0.0; cTime < step * this.proj.frameCount; cTime += step) {
+                        let vertices = maskElement.property('maskShape').valueAtTime(cTime, true).vertices;
+                        let solidPath = '';
+                        let drawPath = '';
+                        let finalPath = '';
+                        if (inverted) {
+                            solidPath = 'M0,0 ';
+                            solidPath += ' h' + layer.width;
+                            solidPath += ' v' + layer.height;
+                            solidPath += ' h-' + layer.width;
+                            solidPath += ' v-' + layer.height + ' ';
+                        }
+                        let lastPoint = undefined;
+                        for (var index = 0; index < vertices.length; index++) {
+                            var currentPoint = vertices[index];
+                            if (lastPoint === undefined) {
+                                drawPath += " M" + Math.round(currentPoint[0]) + "," + Math.round(currentPoint[1]);
+                                lastPoint = currentPoint;
+                            }
+                            else {
+                                drawPath += " C" + Math.round(lastPoint[0]) + "," + Math.round(lastPoint[1]) + " " + Math.round(currentPoint[0]) + "," + Math.round(currentPoint[1]) + " " + Math.round(currentPoint[0]) + "," + Math.round(currentPoint[1]);
+                                lastPoint = currentPoint;
+                            }
+                        }
+                        if (closed) {
+                            drawPath += " C" + Math.round(lastPoint[0]) + "," + Math.round(lastPoint[1]) + " " + Math.round(vertices[0][0]) + "," + Math.round(vertices[0][1]) + " " + Math.round(vertices[0][0]) + "," + Math.round(vertices[0][1]);
+                        }
+                        if (inverted) {
+                            finalPath = solidPath + drawPath;
+                        }
+                        else {
+                            finalPath = drawPath;
+                        }
+                        masks.push(finalPath);
+                    }
+                    return masks;
+                }
+            }
+            return [];
+        }
+
     }
 
     export class Writer {
@@ -340,6 +415,7 @@ namespace SVGA {
                         alpha: element.values.alpha[index],
                         layout: element.values.layout[index],
                         transform: element.values.matrix[index],
+                        clipPath: element.values.mask[index],
                     };
                     if (obj.alpha !== undefined && obj.alpha <= 0.0) {
                         delete obj.alpha;
@@ -347,8 +423,11 @@ namespace SVGA {
                     if (obj.layout !== undefined && (obj.layout.x == 0.0 && obj.layout.y == 0.0 && obj.layout.width == 0.0 && obj.layout.height == 0.0)) {
                         delete obj.layout;
                     }
-                    if (obj.transform !== undefined && (obj.transform.a == 1.0 && obj.transform.b== 0.0 && obj.transform.c == 0.0 && obj.transform.d == 1.0 && obj.transform.tx == 0.0 && obj.transform.ty == 0.0)) {
+                    if (obj.transform !== undefined && (obj.transform.a == 1.0 && obj.transform.b == 0.0 && obj.transform.c == 0.0 && obj.transform.d == 1.0 && obj.transform.tx == 0.0 && obj.transform.ty == 0.0)) {
                         delete obj.transform;
+                    }
+                    if (obj.clipPath === undefined || typeof obj.clipPath !== "string" || obj.clipPath === "") {
+                        delete obj.clipPath;
                     }
                     frames.push(obj);
                 }
