@@ -16,7 +16,7 @@ var SVGA;
             this.app = app;
             this.loadProj();
             this.loadRes(app.project.activeItem.layers, app.project.activeItem.layers.length);
-            this.loadLayer(app.project.activeItem.layers, app.project.activeItem.layers.length, undefined, undefined, undefined);
+            this.loadLayer(app.project.activeItem.layers, app.project.activeItem.layers.length, undefined, undefined);
         }
         Converter.prototype.loadProj = function () {
             this.proj = {
@@ -44,7 +44,7 @@ var SVGA;
                 }
             }
         };
-        Converter.prototype.loadLayer = function (layers, numLayers, parentValues, parentInPoint, parentOutPoint) {
+        Converter.prototype.loadLayer = function (layers, numLayers, parentValues, startTime) {
             for (var i = 1; i <= numLayers; i++) {
                 var element = layers[i];
                 if (element.enabled === false) {
@@ -59,7 +59,7 @@ var SVGA;
                                 layout: this.requestLayout(element.width, element.height),
                                 matrix: this.requestMatrix(element.transform, element.width, element.height),
                                 mask: this.requestMask(element),
-                            }, element.width, element.height, parentInPoint, parentOutPoint),
+                            }, element.width, element.height, startTime),
                         });
                     }
                     else {
@@ -80,14 +80,13 @@ var SVGA;
                         layout: this.requestLayout(element.width, element.height),
                         matrix: this.requestMatrix(element.transform, element.width, element.height),
                         mask: [this.requestMask(element)],
-                    }, element.inPoint, element.outPoint);
+                    }, element.startTime);
                 }
             }
         };
-        Converter.prototype.concatValues = function (a, b, width, height, inPoint, outPoint) {
+        Converter.prototype.concatValues = function (a, b, width, height, startTime) {
             var c = JSON.parse(JSON.stringify(a));
-            var startPoint = Math.min(inPoint, outPoint);
-            var startIndex = Math.round(startPoint / (1.0 / this.proj.frameRate));
+            var startIndex = Math.round(startTime / (1.0 / this.proj.frameRate));
             if (startIndex < 0) {
                 startIndex = 0;
             }

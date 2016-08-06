@@ -37,6 +37,7 @@ namespace AE {
         transform: Transform;
         width: number;
         height: number;
+        startTime: number;
         inPoint: number;
         outPoint: number;
         mask: Mask;
@@ -126,7 +127,7 @@ namespace SVGA {
             this.app = app;
             this.loadProj();
             this.loadRes(app.project.activeItem.layers, app.project.activeItem.layers.length);
-            this.loadLayer(app.project.activeItem.layers, app.project.activeItem.layers.length, undefined, undefined, undefined);
+            this.loadLayer(app.project.activeItem.layers, app.project.activeItem.layers.length, undefined, undefined);
         }
 
         loadProj() {
@@ -157,7 +158,7 @@ namespace SVGA {
             }
         }
 
-        loadLayer(layers: AE.AVLayer[], numLayers: number, parentValues: any, parentInPoint: number, parentOutPoint: number) {
+        loadLayer(layers: AE.AVLayer[], numLayers: number, parentValues: any, startTime: number) {
             for (var i = 1; i <= numLayers; i++) {
                 var element = layers[i];
                 if (element.enabled === false) {
@@ -172,7 +173,7 @@ namespace SVGA {
                                 layout: this.requestLayout(element.width, element.height),
                                 matrix: this.requestMatrix(element.transform, element.width, element.height),
                                 mask: this.requestMask(element),
-                            }, element.width, element.height, parentInPoint, parentOutPoint),
+                            }, element.width, element.height, startTime),
                         });
                     }
                     else {
@@ -193,15 +194,14 @@ namespace SVGA {
                         layout: this.requestLayout(element.width, element.height),
                         matrix: this.requestMatrix(element.transform, element.width, element.height),
                         mask: [this.requestMask(element)],
-                    }, element.inPoint, element.outPoint);
+                    }, element.startTime);
                 }
             }
         }
 
-        concatValues(a: any, b: any, width: number, height: number, inPoint: number, outPoint: number): any {
+        concatValues(a: any, b: any, width: number, height: number, startTime: number): any {
             let c: any = JSON.parse(JSON.stringify(a));
-            let startPoint = Math.min(inPoint, outPoint);
-            let startIndex = Math.round(startPoint / (1.0 / this.proj.frameRate));
+            let startIndex = Math.round(startTime / (1.0 / this.proj.frameRate));
             if (startIndex < 0) {
                 startIndex = 0;
             }
