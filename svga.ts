@@ -128,6 +128,7 @@ namespace SVGA {
             this.loadProj();
             this.loadRes(app.project.activeItem.layers, app.project.activeItem.layers.length);
             this.loadLayer(app.project.activeItem.layers, app.project.activeItem.layers.length, undefined, undefined);
+            this.mergeLayers();
         }
 
         loadProj() {
@@ -359,6 +360,93 @@ namespace SVGA {
             return [];
         }
 
+        mergeLayers() {
+            let rangeLength = 1;
+            for (let index = 0; index < this.layers.length; index += rangeLength) {
+                let layer = this.layers[index];
+                rangeLength = 1;
+                for (let nIndex = index + 1; nIndex < this.layers.length; nIndex++) {
+                    if (this.layers[nIndex].name === layer.name) {
+                        rangeLength++;
+                    }
+                    else {
+                        break;
+                    }
+                }
+                if (rangeLength > 1) {
+                    let maxInterSets = 1;
+                    for (let frameNum = 0; frameNum < this.proj.frameCount; frameNum++) {
+                        let thisMax = 0;
+                        for (let checkIndex = index; checkIndex < index + rangeLength; checkIndex++) {
+                            if (this.layers[checkIndex].values.alpha[frameNum] > 0.0) {
+                                thisMax++;
+                            }
+                        }
+                        maxInterSets = Math.max(maxInterSets, thisMax);
+                    }
+                    if (maxInterSets === 1 || maxInterSets === rangeLength) {
+                        continue;
+                    }
+                    let mergedLayers: Layer[] = [];
+                    for (let _ = 0; _ < maxInterSets; _++) {
+                        mergedLayers.push({
+                            name: layer.name,
+                            values: {
+                                alpha: [],
+                                layout: [],
+                                matrix: [],
+                                mask: [],
+                            }
+                        });
+                    }
+                    for (let frameNum = 0; frameNum < this.proj.frameCount; frameNum++) {
+                        let currentLayer = 0;
+                        for (let checkIndex = index; checkIndex < index + rangeLength; checkIndex++) {
+                            if (this.layers[checkIndex].values.alpha[frameNum] > 0.0) {
+                                mergedLayers[currentLayer].values.alpha.push(this.layers[checkIndex].values.alpha[frameNum]);
+                                mergedLayers[currentLayer].values.layout.push(this.layers[checkIndex].values.layout[frameNum]);
+                                mergedLayers[currentLayer].values.matrix.push(this.layers[checkIndex].values.matrix[frameNum]);
+                                mergedLayers[currentLayer].values.mask.push(this.layers[checkIndex].values.mask[frameNum]);
+                                currentLayer++;
+                            }
+                        }
+                        for (var leftIndex = currentLayer; leftIndex < maxInterSets; leftIndex++) {
+                            mergedLayers[leftIndex].values.alpha.push(0.0);
+                            mergedLayers[leftIndex].values.layout.push(undefined);
+                            mergedLayers[leftIndex].values.matrix.push(undefined);
+                            mergedLayers[leftIndex].values.mask.push(undefined);
+                        }
+                    }
+                    let replaceLayers = [];
+                    let startInsertion = false;
+                    for (let fIndex = 0; fIndex < this.layers.length; fIndex++) {
+                        let element = this.layers[fIndex];
+                        if (!startInsertion) {
+                            if (fIndex < index) {
+                                replaceLayers.push(element);
+                            }
+                            else {
+                                startInsertion = true;
+                                for (let mIndex = 0; mIndex < mergedLayers.length; mIndex++) {
+                                    replaceLayers.push(mergedLayers[mIndex]);
+                                }
+                            }
+                        }
+                        else {
+                            if (fIndex >= index + rangeLength) {
+                                replaceLayers.push(element);
+                            }
+                            else {
+                                continue;
+                            }
+                        }
+                    }
+                    this.layers = replaceLayers;
+                    this.mergeLayers();
+                    return;
+                }
+            }
+        }
     }
 
     export class Writer {
@@ -417,13 +505,16 @@ namespace SVGA {
                         transform: element.values.matrix[index],
                         clipPath: element.values.mask[index],
                     };
-                    if (obj.alpha !== undefined && obj.alpha <= 0.0) {
+                    if (obj.alpha === undefined || obj.alpha <= 0.0) {
                         delete obj.alpha;
+                        delete obj.layout;
+                        delete obj.transform;
+                        delete obj.clipPath;
                     }
-                    if (obj.layout !== undefined && (obj.layout.x == 0.0 && obj.layout.y == 0.0 && obj.layout.width == 0.0 && obj.layout.height == 0.0)) {
+                    if (obj.layout === undefined || (obj.layout.x == 0.0 && obj.layout.y == 0.0 && obj.layout.width == 0.0 && obj.layout.height == 0.0)) {
                         delete obj.layout;
                     }
-                    if (obj.transform !== undefined && (obj.transform.a == 1.0 && obj.transform.b == 0.0 && obj.transform.c == 0.0 && obj.transform.d == 1.0 && obj.transform.tx == 0.0 && obj.transform.ty == 0.0)) {
+                    if (obj.transform === undefined || (obj.transform.a == 1.0 && obj.transform.b == 0.0 && obj.transform.c == 0.0 && obj.transform.d == 1.0 && obj.transform.tx == 0.0 && obj.transform.ty == 0.0)) {
                         delete obj.transform;
                     }
                     if (obj.clipPath === undefined || typeof obj.clipPath !== "string" || obj.clipPath === "") {
