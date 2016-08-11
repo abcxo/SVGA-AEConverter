@@ -959,7 +959,7 @@ var SVGA;
                         continue;
                     }
                 }
-                value.push(prop.valueAtTime(cTime, true) / 100.0);
+                value.push(prop.valueAtTime(cTime, false) / 100.0);
             }
             return value;
         };
@@ -967,13 +967,13 @@ var SVGA;
             var value = [];
             var step = 1.0 / this.proj.frameRate;
             for (var cTime = 0.0; cTime < step * this.proj.frameCount; cTime += step) {
-                var rotation = transform["Rotation"].valueAtTime(cTime, true);
-                var ax = transform["Anchor Point"].valueAtTime(cTime, true)[0];
-                var ay = transform["Anchor Point"].valueAtTime(cTime, true)[1];
-                var sx = transform["Scale"].valueAtTime(cTime, true)[0] / 100.0;
-                var sy = transform["Scale"].valueAtTime(cTime, true)[1] / 100.0;
-                var tx = transform["Position"].valueAtTime(cTime, true)[0];
-                var ty = transform["Position"].valueAtTime(cTime, true)[1];
+                var rotation = transform["Rotation"].valueAtTime(cTime, false);
+                var ax = transform["Anchor Point"].valueAtTime(cTime, false)[0];
+                var ay = transform["Anchor Point"].valueAtTime(cTime, false)[1];
+                var sx = transform["Scale"].valueAtTime(cTime, false)[0] / 100.0;
+                var sy = transform["Scale"].valueAtTime(cTime, false)[1] / 100.0;
+                var tx = transform["Position"].valueAtTime(cTime, false)[0];
+                var ty = transform["Position"].valueAtTime(cTime, false)[1];
                 var matrix = new Matrix();
                 matrix.reset().translate(-ax, -ay).scale(sx, sy).rotate(-rotation * Math.PI / 180);
                 matrix.translate(tx, ty);

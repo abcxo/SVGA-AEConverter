@@ -70,7 +70,7 @@ namespace AE {
 
     export interface KeyframeValues {
         value: any;
-        valueAtTime(time: number, bool: boolean): any;
+        valueAtTime(time: number, preExpression: boolean): any;
     }
 
 }
@@ -254,7 +254,7 @@ namespace SVGA {
                         continue;
                     }
                 }
-                value.push(prop.valueAtTime(cTime, true) / 100.0);
+                value.push(prop.valueAtTime(cTime, false) / 100.0);
             }
             return value;
         }
@@ -263,13 +263,13 @@ namespace SVGA {
             let value: Matrix2D[] = [];
             let step = 1.0 / this.proj.frameRate;
             for (var cTime = 0.0; cTime < step * this.proj.frameCount; cTime += step) {
-                let rotation = transform["Rotation"].valueAtTime(cTime, true);
-                let ax = transform["Anchor Point"].valueAtTime(cTime, true)[0];
-                let ay = transform["Anchor Point"].valueAtTime(cTime, true)[1];
-                let sx = transform["Scale"].valueAtTime(cTime, true)[0] / 100.0;
-                let sy = transform["Scale"].valueAtTime(cTime, true)[1] / 100.0;
-                let tx = transform["Position"].valueAtTime(cTime, true)[0];
-                let ty = transform["Position"].valueAtTime(cTime, true)[1];
+                let rotation = transform["Rotation"].valueAtTime(cTime, false);
+                let ax = transform["Anchor Point"].valueAtTime(cTime, false)[0];
+                let ay = transform["Anchor Point"].valueAtTime(cTime, false)[1];
+                let sx = transform["Scale"].valueAtTime(cTime, false)[0] / 100.0;
+                let sy = transform["Scale"].valueAtTime(cTime, false)[1] / 100.0;
+                let tx = transform["Position"].valueAtTime(cTime, false)[0];
+                let ty = transform["Position"].valueAtTime(cTime, false)[1];
                 let matrix = new Matrix();
                 matrix.reset().translate(-ax, -ay).scale(sx, sy).rotate(-rotation * Math.PI / 180);
                 matrix.translate(tx, ty);
