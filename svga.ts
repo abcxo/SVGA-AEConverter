@@ -33,6 +33,7 @@ namespace AE {
 
     export interface AVLayer {
         enabled: boolean;
+        parent: AVLayer;
         source: Source;
         transform: Transform;
         width: number;
@@ -172,7 +173,7 @@ namespace SVGA {
                             values: this.concatValues(parentValues, {
                                 alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                                 layout: this.requestLayout(element.width, element.height),
-                                matrix: this.requestMatrix(element.transform, element.width, element.height),
+                                matrix: this.requestMatrix(element.transform, element.width, element.height, element.parent),
                                 mask: this.requestMask(element),
                             }, element.width, element.height, startTime),
                         });
@@ -183,7 +184,7 @@ namespace SVGA {
                             values: {
                                 alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                                 layout: this.requestLayout(element.width, element.height),
-                                matrix: this.requestMatrix(element.transform, element.width, element.height),
+                                matrix: this.requestMatrix(element.transform, element.width, element.height, element.parent),
                                 mask: this.requestMask(element),
                             }
                         });
@@ -193,7 +194,7 @@ namespace SVGA {
                     this.loadLayer(element.source.layers, element.source.numLayers, {
                         alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                         layout: this.requestLayout(element.width, element.height),
-                        matrix: this.requestMatrix(element.transform, element.width, element.height),
+                        matrix: this.requestMatrix(element.transform, element.width, element.height, element.parent),
                         mask: [this.requestMask(element)],
                     }, element.startTime);
                 }
@@ -259,7 +260,7 @@ namespace SVGA {
             return value;
         }
 
-        requestMatrix(transform: AE.Transform, width: number, height: number): Matrix2D[] {
+        requestMatrix(transform: AE.Transform, width: number, height: number, parent: AE.AVLayer): Matrix2D[] {
             let value: Matrix2D[] = [];
             let step = 1.0 / this.proj.frameRate;
             for (var cTime = 0.0; cTime < step * this.proj.frameCount; cTime += step) {
@@ -270,6 +271,15 @@ namespace SVGA {
                 let sy = transform["Scale"].valueAtTime(cTime, false)[1] / 100.0;
                 let tx = transform["Position"].valueAtTime(cTime, false)[0];
                 let ty = transform["Position"].valueAtTime(cTime, false)[1];
+                if (parent != null) {
+                    let parent_ax = parent.transform["Anchor Point"].valueAtTime(cTime, false)[0];
+                    let parent_ay = parent.transform["Anchor Point"].valueAtTime(cTime, false)[1];
+                    let parent_tx = parent.transform["Position"].valueAtTime(cTime, false)[0];
+                    let parent_ty = parent.transform["Position"].valueAtTime(cTime, false)[1];
+                    tx = (parent_tx - parent_ax) + tx;
+                    ty = (parent_ty - parent_ay) + ty;
+                    $.write("1234567890");
+                }
                 let matrix = new Matrix();
                 matrix.reset().translate(-ax, -ay).scale(sx, sy).rotate(-rotation * Math.PI / 180);
                 matrix.translate(tx, ty);
