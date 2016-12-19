@@ -128,7 +128,7 @@ namespace SVGA {
             this.app = app;
             this.loadProj();
             this.loadRes(app.project.activeItem.layers, app.project.activeItem.layers.length);
-            this.loadLayer(app.project.activeItem.layers, app.project.activeItem.layers.length, undefined, undefined);
+            this.loadLayer(app.project.activeItem.layers, app.project.activeItem.layers.length, undefined, undefined, []);
             this.mergeLayers();
         }
 
@@ -160,7 +160,7 @@ namespace SVGA {
             }
         }
 
-        loadLayer(layers: AE.AVLayer[], numLayers: number, parentValues: any, startTime: number) {
+        loadLayer(layers: AE.AVLayer[], numLayers: number, parentValues: any, startTime: number, parents: AE.AVLayer[]) {
             for (var i = 1; i <= numLayers; i++) {
                 var element = layers[i];
                 if (element.enabled === false) {
@@ -173,7 +173,7 @@ namespace SVGA {
                             values: this.concatValues(parentValues, {
                                 alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                                 layout: this.requestLayout(element.width, element.height),
-                                matrix: this.requestMatrix(element.transform, element.width, element.height, element.parent),
+                                matrix: this.requestMatrix(element.transform, element.width, element.height),
                                 mask: this.requestMask(element),
                             }, element.width, element.height, startTime),
                         });
@@ -184,19 +184,36 @@ namespace SVGA {
                             values: {
                                 alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                                 layout: this.requestLayout(element.width, element.height),
-                                matrix: this.requestMatrix(element.transform, element.width, element.height, element.parent),
+                                matrix: this.requestMatrix(element.transform, element.width, element.height),
                                 mask: this.requestMask(element),
                             }
                         });
                     }
                 }
                 else if (element.source.numLayers > 0) {
-                    this.loadLayer(element.source.layers, element.source.numLayers, {
-                        alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
-                        layout: this.requestLayout(element.width, element.height),
-                        matrix: this.requestMatrix(element.transform, element.width, element.height, element.parent),
-                        mask: [this.requestMask(element)],
-                    }, element.startTime);
+                    var nextParents = [];
+                    if (parents !== undefined) {
+                        for (var index = 0; index < parents.length; index++) {
+                            nextParents.push(parents[index]);
+                        }
+                    }
+                    nextParents.push(element);
+                    if (parentValues) {
+                        this.loadLayer(element.source.layers, element.source.numLayers, this.concatValues(parentValues, {
+                            alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
+                            layout: this.requestLayout(element.width, element.height),
+                            matrix: this.requestMatrix(element.transform, element.width, element.height),
+                            mask: [this.requestMask(element)],
+                        }, element.width, element.height, startTime), element.startTime, nextParents);
+                    }
+                    else {
+                        this.loadLayer(element.source.layers, element.source.numLayers, {
+                            alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
+                            layout: this.requestLayout(element.width, element.height),
+                            matrix: this.requestMatrix(element.transform, element.width, element.height),
+                            mask: [this.requestMask(element)],
+                        }, element.startTime, nextParents);
+                    }
                 }
             }
         }
@@ -219,16 +236,28 @@ namespace SVGA {
             for (let aIndex = startIndex, bIndex = 0; bIndex < b.matrix.length && aIndex < a.matrix.length; aIndex++ , bIndex++) {
                 let matrix = new Matrix();
                 matrix.reset();
-                matrix.transform(b.matrix[bIndex].a, b.matrix[bIndex].b, 0, 0, b.matrix[bIndex].c, b.matrix[bIndex].d, 0, 0, 0, 0, 0, 0, b.matrix[bIndex].tx, b.matrix[bIndex].ty, 0, 0);
-                matrix.transform(a.matrix[aIndex].a, a.matrix[aIndex].b, 0, 0, a.matrix[aIndex].c, a.matrix[aIndex].d, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-                c.matrix[aIndex] = {
-                    a: matrix.props[0],
-                    b: matrix.props[1],
-                    c: matrix.props[4],
-                    d: matrix.props[5],
-                    tx: matrix.props[12] + a.matrix[aIndex].tx,
-                    ty: matrix.props[13] + a.matrix[aIndex].ty,
-                };
+                if (b.matrix[bIndex] !== undefined && b.matrix[bIndex] !== null) {
+                    matrix.transform(b.matrix[bIndex].a, b.matrix[bIndex].b, 0, 0, b.matrix[bIndex].c, b.matrix[bIndex].d, 0, 0, 0, 0, 0, 0, b.matrix[bIndex].tx, b.matrix[bIndex].ty, 0, 0);
+                    c.matrix[aIndex] = {
+                        a: matrix.props[0],
+                        b: matrix.props[1],
+                        c: matrix.props[4],
+                        d: matrix.props[5],
+                        tx: matrix.props[12],
+                        ty: matrix.props[13],
+                    };
+                }
+                if (a.matrix[aIndex] !== undefined && a.matrix[aIndex] !== null) {
+                    matrix.transform(a.matrix[aIndex].a, a.matrix[aIndex].b, 0, 0, a.matrix[aIndex].c, a.matrix[aIndex].d, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                    c.matrix[aIndex] = {
+                        a: matrix.props[0],
+                        b: matrix.props[1],
+                        c: matrix.props[4],
+                        d: matrix.props[5],
+                        tx: matrix.props[12] + a.matrix[aIndex].tx,
+                        ty: matrix.props[13] + a.matrix[aIndex].ty,
+                    };
+                }
             }
             for (let index = 0; index < startIndex; index++) {
                 delete c.alpha[index];
@@ -260,7 +289,7 @@ namespace SVGA {
             return value;
         }
 
-        requestMatrix(transform: AE.Transform, width: number, height: number, parent: AE.AVLayer): Matrix2D[] {
+        requestMatrix(transform: AE.Transform, width: number, height: number): Matrix2D[] {
             let value: Matrix2D[] = [];
             let step = 1.0 / this.proj.frameRate;
             for (var cTime = 0.0; cTime < step * this.proj.frameCount; cTime += step) {
@@ -271,17 +300,8 @@ namespace SVGA {
                 let sy = transform["Scale"].valueAtTime(cTime, false)[1] / 100.0;
                 let tx = transform["Position"].valueAtTime(cTime, false)[0];
                 let ty = transform["Position"].valueAtTime(cTime, false)[1];
-                if (parent != null) {
-                    let parent_ax = parent.transform["Anchor Point"].valueAtTime(cTime, false)[0];
-                    let parent_ay = parent.transform["Anchor Point"].valueAtTime(cTime, false)[1];
-                    let parent_tx = parent.transform["Position"].valueAtTime(cTime, false)[0];
-                    let parent_ty = parent.transform["Position"].valueAtTime(cTime, false)[1];
-                    tx = (parent_tx - parent_ax) + tx;
-                    ty = (parent_ty - parent_ay) + ty;
-                    $.write("1234567890");
-                }
                 let matrix = new Matrix();
-                matrix.reset().translate(-ax, -ay).scale(sx, sy).rotate(-rotation * Math.PI / 180);
+                matrix.translate(-ax, -ay).scale(sx, sy).rotate(-rotation * Math.PI / 180);
                 matrix.translate(tx, ty);
                 value.push({
                     a: matrix.props[0],
