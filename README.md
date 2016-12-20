@@ -27,4 +27,4 @@ clone 或 download 仓库
 
 ## 测试
 
-要测试生成文件是否可以正常使用，使用浏览器，打开 http://uedfe.yypm.com/assets/svgaplayer/ ，选择或拖入 SVGA 源文件，即可预览动画效果。
+要测试生成文件是否可以正常使用，使用浏览器，打开 http://legox.yy.com/svga/svgaplayer/ ，选择或拖入 SVGA 源文件，即可预览动画效果。
