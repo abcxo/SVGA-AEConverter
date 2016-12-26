@@ -35,10 +35,22 @@ var SVGA;
                     continue;
                 }
                 if (element.source && element.source.file) {
-                    this.res.push({
-                        name: element.source.name,
-                        path: element.source.file.fsName,
-                    });
+                    if (element.source.name.indexOf(".psd") > 0) {
+                        this.res.push({
+                            name: "psd_" + element.source.id + ".png",
+                            path: element.source.file.fsName,
+                            source: element.source,
+                            psdID: element.source.id.toString(),
+                        });
+                    }
+                    else {
+                        this.res.push({
+                            name: element.source.name,
+                            path: element.source.file.fsName,
+                            source: element.source,
+                            psdID: undefined,
+                        });
+                    }
                 }
                 else if (element.source.numLayers > 0) {
                     this.loadRes(element.source.layers, element.source.numLayers);
@@ -52,9 +64,13 @@ var SVGA;
                     continue;
                 }
                 if (element.source && element.source.file) {
+                    var eName = element.source.name;
+                    if (eName.indexOf('.psd') > 0) {
+                        eName = "psd_" + element.source.id + ".png";
+                    }
                     if (parentValues) {
                         this.layers.push({
-                            name: element.source.name,
+                            name: eName,
                             values: this.concatValues(parentValues, {
                                 alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                                 layout: this.requestLayout(element.width, element.height),
@@ -65,7 +81,7 @@ var SVGA;
                     }
                     else {
                         this.layers.push({
-                            name: element.source.name,
+                            name: eName,
                             values: {
                                 alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                                 layout: this.requestLayout(element.width, element.height),
@@ -105,9 +121,6 @@ var SVGA;
         Converter.prototype.concatValues = function (a, b, width, height, startTime) {
             var c = JSON.parse(JSON.stringify(a));
             var startIndex = Math.round(startTime / (1.0 / this.proj.frameRate));
-            // if (startIndex < 0) {
-            //     startIndex = 0;
-            // }
             for (var aIndex = startIndex, bIndex = 0; bIndex < b.alpha.length; aIndex++, bIndex++) {
                 if (aIndex < 0) {
                     continue;
@@ -368,14 +381,65 @@ var SVGA;
             this.writeSpec();
         };
         Writer.prototype.createOutputDirectories = function () {
+            var files = new Folder(this.outPath).getFiles();
+            for (var index = 0; index < files.length; index++) {
+                var element = files[index];
+                element.remove();
+            }
             new Folder(this.outPath).create();
         };
         Writer.prototype.copyImages = function () {
             var _File = File;
             for (var index = 0; index < this.converter.res.length; index++) {
                 var element = this.converter.res[index];
-                (new _File(element.path)).copy(new _File(this.outPath + "/" + element.name.replace(/\.png/ig, "").replace(/ /ig, "") + ".png"));
+                if (element.psdID !== undefined) {
+                    this.saveSource(element);
+                }
+                else {
+                    (new _File(element.path)).copy(new _File(this.outPath + "/" + element.name.replace(/\.png/ig, "").replace(/ /ig, "") + ".png"));
+                }
             }
+        };
+        Writer.prototype.saveSource = function (element) {
+            var _File = File;
+            function storeRenderQueue() {
+                var checkeds = [];
+                for (var p = 1; p <= app.project.renderQueue.numItems; p++) {
+                    if (app.project.renderQueue.item(p).status == RQItemStatus.RENDERING) {
+                        checkeds.push("rendering");
+                        break;
+                    }
+                    else if (app.project.renderQueue.item(p).status == RQItemStatus.QUEUED) {
+                        checkeds.push(p);
+                        app.project.renderQueue.item(p).render = false;
+                    }
+                }
+                return checkeds;
+            }
+            function restoreRenderQueue(checkedItems) {
+                for (var q = 0; q < checkedItems.length; q++) {
+                    app.project.renderQueue.item(checkedItems[q]).render = true;
+                }
+            }
+            var currentSource = element.source;
+            var helperComp = app.project.items.addComp('tempConverterComp', Math.max(4, currentSource.width), Math.max(4, currentSource.height), 1, 1, 1);
+            helperComp.layers.add(currentSource, 0);
+            helperComp.layers.add(currentSource, 1);
+            helperComp.layers[2].remove();
+            var RQbackup = storeRenderQueue();
+            app.project.renderQueue.items.add(helperComp);
+            app.project.renderQueue.item(app.project.renderQueue.numItems).render = true;
+            var templateTemp = app.project.renderQueue.item(app.project.renderQueue.numItems).outputModule(1).templates;
+            var setPNG = app.project.renderQueue.item(app.project.renderQueue.numItems).outputModule(1).templates[templateTemp.length - 1];
+            app.project.renderQueue.item(app.project.renderQueue.numItems).outputModule(1).applyTemplate(setPNG);
+            app.project.renderQueue.item(app.project.renderQueue.numItems).outputModule(1).file = new _File(this.outPath + "/psd_" + element.psdID + ".png");
+            app.project.renderQueue.render();
+            app.project.renderQueue.item(app.project.renderQueue.numItems).remove();
+            if (RQbackup != null) {
+                restoreRenderQueue(RQbackup);
+            }
+            helperComp.remove();
+            (new _File(this.outPath + "/psd_" + element.psdID + ".png00000")).rename("psd_" + element.psdID + ".png");
         };
         Writer.prototype.writeSpec = function () {
             var _File = File;
