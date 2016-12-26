@@ -926,19 +926,31 @@ var SVGA;
         Converter.prototype.concatValues = function (a, b, width, height, startTime) {
             var c = JSON.parse(JSON.stringify(a));
             var startIndex = Math.round(startTime / (1.0 / this.proj.frameRate));
-            if (startIndex < 0) {
-                startIndex = 0;
-            }
+            // if (startIndex < 0) {
+            //     startIndex = 0;
+            // }
             for (var aIndex = startIndex, bIndex = 0; bIndex < b.alpha.length; aIndex++, bIndex++) {
+                if (aIndex < 0) {
+                    continue;
+                }
                 c.alpha[aIndex] = b.alpha[bIndex] * a.alpha[aIndex];
             }
             for (var aIndex = startIndex, bIndex = 0; bIndex < b.layout.length; aIndex++, bIndex++) {
+                if (aIndex < 0) {
+                    continue;
+                }
                 c.layout[aIndex] = b.layout[bIndex];
             }
             for (var aIndex = startIndex, bIndex = 0; bIndex < b.mask.length; aIndex++, bIndex++) {
+                if (aIndex < 0) {
+                    continue;
+                }
                 c.mask[aIndex] = b.mask[bIndex];
             }
             for (var aIndex = startIndex, bIndex = 0; bIndex < b.matrix.length && aIndex < a.matrix.length; aIndex++, bIndex++) {
+                if (aIndex < 0) {
+                    continue;
+                }
                 var matrix = new Matrix();
                 matrix.reset();
                 if (b.matrix[bIndex] !== undefined && b.matrix[bIndex] !== null) {

@@ -221,19 +221,28 @@ namespace SVGA {
         concatValues(a: any, b: any, width: number, height: number, startTime: number): any {
             let c: any = JSON.parse(JSON.stringify(a));
             let startIndex = Math.round(startTime / (1.0 / this.proj.frameRate));
-            if (startIndex < 0) {
-                startIndex = 0;
-            }
             for (let aIndex = startIndex, bIndex = 0; bIndex < b.alpha.length; aIndex++ , bIndex++) {
+                if (aIndex < 0) {
+                    continue;
+                }
                 c.alpha[aIndex] = b.alpha[bIndex] * a.alpha[aIndex];
             }
             for (let aIndex = startIndex, bIndex = 0; bIndex < b.layout.length; aIndex++ , bIndex++) {
+                if (aIndex < 0) {
+                    continue;
+                }
                 c.layout[aIndex] = b.layout[bIndex];
             }
             for (let aIndex = startIndex, bIndex = 0; bIndex < b.mask.length; aIndex++ , bIndex++) {
+                if (aIndex < 0) {
+                    continue;
+                }
                 c.mask[aIndex] = b.mask[bIndex];
             }
             for (let aIndex = startIndex, bIndex = 0; bIndex < b.matrix.length && aIndex < a.matrix.length; aIndex++ , bIndex++) {
+                if (aIndex < 0) {
+                    continue;
+                }
                 let matrix = new Matrix();
                 matrix.reset();
                 if (b.matrix[bIndex] !== undefined && b.matrix[bIndex] !== null) {
