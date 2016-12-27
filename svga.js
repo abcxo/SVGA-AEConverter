@@ -29,13 +29,18 @@ var SVGA;
             };
         };
         Converter.prototype.loadRes = function (layers, numLayers) {
+            var m = {};
             for (var i = 1; i <= layers.length; i++) {
                 var element = layers[i];
                 if (element.enabled === false) {
                     continue;
                 }
                 if (element.source && element.source.file) {
-                    if (element.source.name.indexOf(".psd") > 0) {
+                    if (m[element.source.id] === true) {
+                        continue;
+                    }
+                    m[element.source.id] = true;
+                    if (element.source.file.fsName.indexOf(".psd") > 0) {
                         this.res.push({
                             name: "psd_" + element.source.id + ".png",
                             path: element.source.file.fsName,
