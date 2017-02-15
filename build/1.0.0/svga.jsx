@@ -870,8 +870,15 @@ var SVGA;
                         });
                     }
                     else {
+                        var eName = element.source.name;
+                        if (element.source.name.match(/[^a-zA-Z0-9\.\_\-]/)) {
+                            eName = "img_" + element.source.id + ".png";
+                        }
+                        else {
+                            eName = element.source.name;
+                        }
                         this.res.push({
-                            name: element.source.name,
+                            name: eName,
                             path: element.source.file.fsName,
                             source: element.source,
                             psdID: undefined,
@@ -893,6 +900,14 @@ var SVGA;
                     var eName = element.source.name;
                     if (eName.indexOf('.psd') > 0) {
                         eName = "psd_" + element.source.id + ".png";
+                    }
+                    else {
+                        if (element.source.name.match(/[^a-zA-Z0-9\.\_\-]/)) {
+                            eName = "img_" + element.source.id + ".png";
+                        }
+                        else {
+                            eName = element.source.name;
+                        }
                     }
                     if (parentValues) {
                         this.layers.push({
