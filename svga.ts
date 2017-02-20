@@ -43,6 +43,9 @@ namespace AE {
         inPoint: number;
         outPoint: number;
         mask: Mask;
+        matchName: String;
+        parentProperty?: AVLayer;
+        property(key: string): any;
     }
 
     export interface Mask {
@@ -111,6 +114,16 @@ namespace SVGA {
         ty: number;
     }
 
+    interface Shape2D {
+        type: "shape" | "rect" | "ellipse";
+        args: any;
+        styles: {
+            fill: string;
+            stroke: string;
+            strokeWidth: number;
+        };
+    }
+
     interface Layer {
         name: string;
         values: {
@@ -118,6 +131,7 @@ namespace SVGA {
             layout: Rect2D[],
             matrix: Matrix2D[],
             mask: string[],
+            shapes: Shape2D[][],
         };
     }
 
@@ -194,7 +208,21 @@ namespace SVGA {
                 if (element.enabled === false) {
                     continue;
                 }
-                if (element.source && element.source.file) {
+                if (element.matchName === "ADBE Vector Layer") {
+                    let shapesPointer = [];
+                    this.requestShapes(element, shapesPointer)
+                    this.layers.push({
+                        name: i + ".vector",
+                        values: this.concatValues(parentValues, {
+                                alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
+                                layout: this.requestLayout(element.width, element.height),
+                                matrix: this.requestMatrix(element.transform, element.width, element.height),
+                                mask: this.requestMask(element),
+                                shapes: shapesPointer,
+                        }, element.width, element.height, startTime),
+                    })
+                }
+                else if (element.source && element.source.file) {
                     var eName: string = element.source.name;
                     if (eName.indexOf('.psd') > 0) {
                         eName = "psd_" + element.source.id + ".png";
@@ -215,6 +243,7 @@ namespace SVGA {
                                 layout: this.requestLayout(element.width, element.height),
                                 matrix: this.requestMatrix(element.transform, element.width, element.height),
                                 mask: this.requestMask(element),
+                                shapes: [],
                             }, element.width, element.height, startTime),
                         });
                     }
@@ -226,6 +255,7 @@ namespace SVGA {
                                 layout: this.requestLayout(element.width, element.height),
                                 matrix: this.requestMatrix(element.transform, element.width, element.height),
                                 mask: this.requestMask(element),
+                                shapes: [],
                             }
                         });
                     }
@@ -308,11 +338,18 @@ namespace SVGA {
                     };
                 }
             }
+            for (let aIndex = startIndex, bIndex = 0; bIndex < b.mask.length; aIndex++ , bIndex++) {
+                if (aIndex < 0) {
+                    continue;
+                }
+                c.shapes[aIndex] = b.shapes[bIndex];
+            }
             for (let index = 0; index < startIndex; index++) {
                 delete c.alpha[index];
                 delete c.layout[index];
                 delete c.matrix[index];
                 delete c.mask[index];
+                delete c.shapes[index];
             }
             return c;
         }
@@ -425,6 +462,63 @@ namespace SVGA {
             return [];
         }
 
+        requestShapes(layer: AE.AVLayer): Shape2D[][] {
+            let values: Shape2D[][] = []
+            let step = 1.0 / this.proj.frameRate;
+            for (var cTime = 0.0; cTime < step * this.proj.frameCount; cTime += step) {
+                let value: Shape2D[] = []
+                let contents = layer.property('Contents');
+                let numProperties: number = contents.numProperties;
+                for (let index = 0; index < numProperties; index += 1) {
+                    let sublayer: AE.AVLayer = contents.property(index + 1);
+                    this.requestShapesAtTime(sublayer, value, cTime);
+                }
+                values.push(value);
+            }
+            return values;
+        }
+
+        requestShapesAtTime(layer: AE.AVLayer, value: Shape2D[], cTime: number): void {
+            if (layer.matchName == "ADBE Vector Shape") {
+                let pathContents = layer.property('Path');
+                let path = pathContents.valueAtTime(cTime, false);
+                let shape: Shape2D = {
+                    type: "shape",
+                    args: {
+                        pts: (path.vertices as number[][]).map(function(item) {
+                            return {
+                                x: item[0],
+                                y: item[1],
+                            }
+                        })
+                    },
+                    styles: this.requestShapeStyles(layer, cTime)
+                }
+                value.push(shape);
+                return;
+            }
+        }
+
+        requestShapeStyles(layer: AE.AVLayer, cTime: number): any {
+            let styles: any = {}
+            let contents = layer.parentProperty.property('Contents');
+            let numProperties: number = contents.numProperties
+            var started = false
+            for (let index = 0; index < numProperties; index += 1) {
+                let sublayer: AE.AVLayer = contents.property(index + 1)
+                if (sublayer == layer) {
+                    started = true
+                }
+                if (!started) {
+                    continue
+                }
+                if (layer.matchName == "ADBE Vector Graphic - Fill") {
+                    styles.fill = layer.property('Color').valueAtTime(cTime, true)
+                }
+            }
+            return styles
+        }
+
         mergeLayers() {
             let rangeLength = 1;
             for (let index = 0; index < this.layers.length; index += rangeLength) {
@@ -461,6 +555,7 @@ namespace SVGA {
                                 layout: [],
                                 matrix: [],
                                 mask: [],
+                                shapes: [],
                             }
                         });
                     }
@@ -472,6 +567,7 @@ namespace SVGA {
                                 mergedLayers[currentLayer].values.layout.push(this.layers[checkIndex].values.layout[frameNum]);
                                 mergedLayers[currentLayer].values.matrix.push(this.layers[checkIndex].values.matrix[frameNum]);
                                 mergedLayers[currentLayer].values.mask.push(this.layers[checkIndex].values.mask[frameNum]);
+                                mergedLayers[currentLayer].values.shapes.push(this.layers[checkIndex].values.shapes[frameNum]);
                                 currentLayer++;
                             }
                         }
@@ -480,6 +576,7 @@ namespace SVGA {
                             mergedLayers[leftIndex].values.layout.push(undefined);
                             mergedLayers[leftIndex].values.matrix.push(undefined);
                             mergedLayers[leftIndex].values.mask.push(undefined);
+                            mergedLayers[leftIndex].values.shapes.push(undefined);
                         }
                     }
                     let replaceLayers = [];
@@ -596,7 +693,7 @@ namespace SVGA {
         writeSpec() {
             let _File = File as any;
             let spec = {
-                ver: "1.0.1",
+                ver: "1.1.0",
                 movie: {
                     viewBox: {
                         width: this.converter.proj.width,
@@ -621,12 +718,14 @@ namespace SVGA {
                         layout: element.values.layout[index],
                         transform: element.values.matrix[index],
                         clipPath: element.values.mask[index],
+                        shapes: element.values.shapes[index],
                     };
                     if (obj.alpha === undefined || obj.alpha <= 0.0) {
                         delete obj.alpha;
                         delete obj.layout;
                         delete obj.transform;
                         delete obj.clipPath;
+                        delete obj.shapes;
                     }
                     if (obj.layout === undefined || (obj.layout.x == 0.0 && obj.layout.y == 0.0 && obj.layout.width == 0.0 && obj.layout.height == 0.0)) {
                         delete obj.layout;
