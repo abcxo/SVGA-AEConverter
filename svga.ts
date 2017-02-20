@@ -115,9 +115,9 @@ namespace SVGA {
     }
 
     interface Shape2D {
-        type: "shape" | "rect" | "ellipse";
-        args: any;
-        styles: {
+        type: "shape" | "rect" | "ellipse" | "keep";
+        args?: any;
+        styles?: {
             fill: string;
             stroke: string;
             strokeWidth: number;
@@ -164,7 +164,7 @@ namespace SVGA {
             var m = {};
             for (var i = 1; i <= layers.length; i++) {
                 var element = layers[i];
-                if (element.enabled === false) {
+                if (element.enabled === false || element.source === null || element.source === undefined) {
                     continue;
                 }
                 if (element.source && element.source.file) {
@@ -209,18 +209,17 @@ namespace SVGA {
                     continue;
                 }
                 if (element.matchName === "ADBE Vector Layer") {
-                    let shapesPointer = [];
-                    this.requestShapes(element, shapesPointer)
+                    let shapes = this.requestShapes(element);
                     this.layers.push({
-                        name: i + ".vector",
-                        values: this.concatValues(parentValues, {
+                        name: ".vector",
+                        values: {
                                 alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                                 layout: this.requestLayout(element.width, element.height),
                                 matrix: this.requestMatrix(element.transform, element.width, element.height),
                                 mask: this.requestMask(element),
-                                shapes: shapesPointer,
-                        }, element.width, element.height, startTime),
-                    })
+                                shapes: this.requestShapes(element),
+                        }
+                    });
                 }
                 else if (element.source && element.source.file) {
                     var eName: string = element.source.name;
@@ -465,55 +464,89 @@ namespace SVGA {
         requestShapes(layer: AE.AVLayer): Shape2D[][] {
             let values: Shape2D[][] = []
             let step = 1.0 / this.proj.frameRate;
+            var lastValue: string = ""
             for (var cTime = 0.0; cTime < step * this.proj.frameCount; cTime += step) {
-                let value: Shape2D[] = []
-                let contents = layer.property('Contents');
-                let numProperties: number = contents.numProperties;
-                for (let index = 0; index < numProperties; index += 1) {
-                    let sublayer: AE.AVLayer = contents.property(index + 1);
-                    this.requestShapesAtTime(sublayer, value, cTime);
+                let value = this.requestShapesAtTime(layer, cTime)
+                if (lastValue === JSON.stringify(value)) {
+                    let keep: Shape2D = {
+                        type: "keep"
+                    }
+                    values.push([keep])
                 }
-                values.push(value);
+                else {
+                    lastValue = JSON.stringify(value)
+                    values.push(value);
+                }
             }
             return values;
         }
 
-        requestShapesAtTime(layer: AE.AVLayer, value: Shape2D[], cTime: number): void {
-            if (layer.matchName == "ADBE Vector Shape") {
+        requestShapesAtTime(layer: AE.AVLayer, cTime: number, parent?: AE.AVLayer): Shape2D[] {
+            var shapes: Shape2D[] = []
+            if (layer.matchName == "ADBE Vector Shape - Group") {
                 let pathContents = layer.property('Path');
                 let path = pathContents.valueAtTime(cTime, false);
+                let inTangents = path.inTangents as number[][]
+                let vertices = path.vertices as number[][]
+                var d = ""
+                for (var index = 0; index <= vertices.length; index++) {
+                    var vertex: number[] = vertices[index];
+                    var it = inTangents[index];
+                    if (index == 0) {
+                        d += "M " + vertex[0] + " " + vertex[1] + " ";
+                    }
+                    else if (index == vertices.length) {
+                        d += "C " + (vertices[index - 1][0] - inTangents[index - 1][0]) + " " + (vertices[index - 1][1] - inTangents[index - 1][1]) + " " + 
+                             (vertices[0][0] + inTangents[0][0]) + " " + (vertices[0][1] + inTangents[0][1]) + " " + 
+                             (vertices[0][0]) + " " + (vertices[0][1]) + " ";
+                    }
+                    else {
+                        d += "C " + (vertices[index - 1][0] - inTangents[index - 1][0]) + " " + (vertices[index - 1][1] - inTangents[index - 1][1]) + " " + 
+                             (vertex[0] + inTangents[index][0]) + " " + (vertex[1] + inTangents[index][1]) + " " + 
+                             (vertex[0]) + " " + (vertex[1]) + " ";
+                    }
+                }
+                if (path.closed) {
+                    d += "Z";
+                }
                 let shape: Shape2D = {
                     type: "shape",
                     args: {
-                        pts: (path.vertices as number[][]).map(function(item) {
-                            return {
-                                x: item[0],
-                                y: item[1],
-                            }
-                        })
+                        d: d,
                     },
-                    styles: this.requestShapeStyles(layer, cTime)
+                    styles: this.requestShapeStyles(layer, parent, cTime)
                 }
-                value.push(shape);
-                return;
+                shapes.push(shape);
             }
+            else {
+                let contents = layer.property('Contents');
+                if (contents != null && contents != undefined) {
+                    let numProperties: number = contents.numProperties;
+                    for (let index = 0; index < numProperties; index += 1) {
+                        let sublayer: AE.AVLayer = contents.property(index + 1);
+                        let results = this.requestShapesAtTime(sublayer, cTime, layer);
+                        for (var i = 0; i < results.length; i++) {
+                            var element = results[i];
+                            shapes.push(element);
+                        }
+                    }
+                }
+            }
+            return shapes;
         }
 
-        requestShapeStyles(layer: AE.AVLayer, cTime: number): any {
+        requestShapeStyles(layer: AE.AVLayer, parent: AE.AVLayer, cTime: number): any {
             let styles: any = {}
-            let contents = layer.parentProperty.property('Contents');
+            let contents = parent.property('Contents');
             let numProperties: number = contents.numProperties
-            var started = false
             for (let index = 0; index < numProperties; index += 1) {
                 let sublayer: AE.AVLayer = contents.property(index + 1)
-                if (sublayer == layer) {
-                    started = true
+                if (sublayer.matchName == "ADBE Vector Graphic - Fill") {
+                    styles.fill = sublayer.property('Color').valueAtTime(cTime, true)
                 }
-                if (!started) {
-                    continue
-                }
-                if (layer.matchName == "ADBE Vector Graphic - Fill") {
-                    styles.fill = layer.property('Color').valueAtTime(cTime, true)
+                else if (sublayer.matchName == "ADBE Vector Graphic - Stroke") {
+                    styles.stroke = sublayer.property('Color').valueAtTime(cTime, true)
+                    styles.strokeWidth = sublayer.property('Stroke Width').valueAtTime(cTime, true)
                 }
             }
             return styles

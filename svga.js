@@ -32,7 +32,7 @@ var SVGA;
             var m = {};
             for (var i = 1; i <= layers.length; i++) {
                 var element = layers[i];
-                if (element.enabled === false) {
+                if (element.enabled === false || element.source === null || element.source === undefined) {
                     continue;
                 }
                 if (element.source && element.source.file) {
@@ -75,7 +75,20 @@ var SVGA;
                 if (element.enabled === false) {
                     continue;
                 }
-                if (element.source && element.source.file) {
+                if (element.matchName === "ADBE Vector Layer") {
+                    var shapes = this.requestShapes(element);
+                    this.layers.push({
+                        name: ".vector",
+                        values: {
+                            alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
+                            layout: this.requestLayout(element.width, element.height),
+                            matrix: this.requestMatrix(element.transform, element.width, element.height),
+                            mask: this.requestMask(element),
+                            shapes: this.requestShapes(element),
+                        }
+                    });
+                }
+                else if (element.source && element.source.file) {
                     var eName = element.source.name;
                     if (eName.indexOf('.psd') > 0) {
                         eName = "psd_" + element.source.id + ".png";
@@ -96,6 +109,7 @@ var SVGA;
                                 layout: this.requestLayout(element.width, element.height),
                                 matrix: this.requestMatrix(element.transform, element.width, element.height),
                                 mask: this.requestMask(element),
+                                shapes: [],
                             }, element.width, element.height, startTime),
                         });
                     }
@@ -107,6 +121,7 @@ var SVGA;
                                 layout: this.requestLayout(element.width, element.height),
                                 matrix: this.requestMatrix(element.transform, element.width, element.height),
                                 mask: this.requestMask(element),
+                                shapes: [],
                             }
                         });
                     }
@@ -188,11 +203,18 @@ var SVGA;
                     };
                 }
             }
+            for (var aIndex = startIndex, bIndex = 0; bIndex < b.mask.length; aIndex++, bIndex++) {
+                if (aIndex < 0) {
+                    continue;
+                }
+                c.shapes[aIndex] = b.shapes[bIndex];
+            }
             for (var index = 0; index < startIndex; index++) {
                 delete c.alpha[index];
                 delete c.layout[index];
                 delete c.matrix[index];
                 delete c.mask[index];
+                delete c.shapes[index];
             }
             return c;
         };
@@ -300,6 +322,94 @@ var SVGA;
             }
             return [];
         };
+        Converter.prototype.requestShapes = function (layer) {
+            var values = [];
+            var step = 1.0 / this.proj.frameRate;
+            var lastValue = "";
+            for (var cTime = 0.0; cTime < step * this.proj.frameCount; cTime += step) {
+                var value = this.requestShapesAtTime(layer, cTime);
+                if (lastValue === JSON.stringify(value)) {
+                    var keep = {
+                        type: "keep"
+                    };
+                    values.push([keep]);
+                }
+                else {
+                    lastValue = JSON.stringify(value);
+                    values.push(value);
+                }
+            }
+            return values;
+        };
+        Converter.prototype.requestShapesAtTime = function (layer, cTime, parent) {
+            var shapes = [];
+            if (layer.matchName == "ADBE Vector Shape - Group") {
+                var pathContents = layer.property('Path');
+                var path = pathContents.valueAtTime(cTime, false);
+                var inTangents = path.inTangents;
+                var vertices = path.vertices;
+                var d = "";
+                for (var index = 0; index <= vertices.length; index++) {
+                    var vertex = vertices[index];
+                    var it = inTangents[index];
+                    if (index == 0) {
+                        d += "M " + vertex[0] + " " + vertex[1] + " ";
+                    }
+                    else if (index == vertices.length) {
+                        d += "C " + (vertices[index - 1][0] - inTangents[index - 1][0]) + " " + (vertices[index - 1][1] - inTangents[index - 1][1]) + " " +
+                            (vertices[0][0] + inTangents[0][0]) + " " + (vertices[0][1] + inTangents[0][1]) + " " +
+                            (vertices[0][0]) + " " + (vertices[0][1]) + " ";
+                    }
+                    else {
+                        d += "C " + (vertices[index - 1][0] - inTangents[index - 1][0]) + " " + (vertices[index - 1][1] - inTangents[index - 1][1]) + " " +
+                            (vertex[0] + inTangents[index][0]) + " " + (vertex[1] + inTangents[index][1]) + " " +
+                            (vertex[0]) + " " + (vertex[1]) + " ";
+                    }
+                }
+                if (path.closed) {
+                    d += "Z";
+                }
+                var shape = {
+                    type: "shape",
+                    args: {
+                        d: d,
+                    },
+                    styles: this.requestShapeStyles(layer, parent, cTime)
+                };
+                shapes.push(shape);
+            }
+            else {
+                var contents = layer.property('Contents');
+                if (contents != null && contents != undefined) {
+                    var numProperties = contents.numProperties;
+                    for (var index_1 = 0; index_1 < numProperties; index_1 += 1) {
+                        var sublayer = contents.property(index_1 + 1);
+                        var results = this.requestShapesAtTime(sublayer, cTime, layer);
+                        for (var i = 0; i < results.length; i++) {
+                            var element = results[i];
+                            shapes.push(element);
+                        }
+                    }
+                }
+            }
+            return shapes;
+        };
+        Converter.prototype.requestShapeStyles = function (layer, parent, cTime) {
+            var styles = {};
+            var contents = parent.property('Contents');
+            var numProperties = contents.numProperties;
+            for (var index = 0; index < numProperties; index += 1) {
+                var sublayer = contents.property(index + 1);
+                if (sublayer.matchName == "ADBE Vector Graphic - Fill") {
+                    styles.fill = sublayer.property('Color').valueAtTime(cTime, true);
+                }
+                else if (sublayer.matchName == "ADBE Vector Graphic - Stroke") {
+                    styles.stroke = sublayer.property('Color').valueAtTime(cTime, true);
+                    styles.strokeWidth = sublayer.property('Stroke Width').valueAtTime(cTime, true);
+                }
+            }
+            return styles;
+        };
         Converter.prototype.mergeLayers = function () {
             var rangeLength = 1;
             for (var index = 0; index < this.layers.length; index += rangeLength) {
@@ -336,6 +446,7 @@ var SVGA;
                                 layout: [],
                                 matrix: [],
                                 mask: [],
+                                shapes: [],
                             }
                         });
                     }
@@ -347,6 +458,7 @@ var SVGA;
                                 mergedLayers[currentLayer].values.layout.push(this.layers[checkIndex].values.layout[frameNum]);
                                 mergedLayers[currentLayer].values.matrix.push(this.layers[checkIndex].values.matrix[frameNum]);
                                 mergedLayers[currentLayer].values.mask.push(this.layers[checkIndex].values.mask[frameNum]);
+                                mergedLayers[currentLayer].values.shapes.push(this.layers[checkIndex].values.shapes[frameNum]);
                                 currentLayer++;
                             }
                         }
@@ -355,6 +467,7 @@ var SVGA;
                             mergedLayers[leftIndex].values.layout.push(undefined);
                             mergedLayers[leftIndex].values.matrix.push(undefined);
                             mergedLayers[leftIndex].values.mask.push(undefined);
+                            mergedLayers[leftIndex].values.shapes.push(undefined);
                         }
                     }
                     var replaceLayers = [];
@@ -464,7 +577,7 @@ var SVGA;
         Writer.prototype.writeSpec = function () {
             var _File = File;
             var spec = {
-                ver: "1.0.1",
+                ver: "1.1.0",
                 movie: {
                     viewBox: {
                         width: this.converter.proj.width,
@@ -483,18 +596,20 @@ var SVGA;
             for (var index = this.converter.layers.length - 1; index >= 0; index--) {
                 var element = this.converter.layers[index];
                 var frames_1 = [];
-                for (var index_1 = 0; index_1 < this.converter.proj.frameCount; index_1++) {
+                for (var index_2 = 0; index_2 < this.converter.proj.frameCount; index_2++) {
                     var obj = {
-                        alpha: element.values.alpha[index_1],
-                        layout: element.values.layout[index_1],
-                        transform: element.values.matrix[index_1],
-                        clipPath: element.values.mask[index_1],
+                        alpha: element.values.alpha[index_2],
+                        layout: element.values.layout[index_2],
+                        transform: element.values.matrix[index_2],
+                        clipPath: element.values.mask[index_2],
+                        shapes: element.values.shapes[index_2],
                     };
                     if (obj.alpha === undefined || obj.alpha <= 0.0) {
                         delete obj.alpha;
                         delete obj.layout;
                         delete obj.transform;
                         delete obj.clipPath;
+                        delete obj.shapes;
                     }
                     if (obj.layout === undefined || (obj.layout.x == 0.0 && obj.layout.y == 0.0 && obj.layout.width == 0.0 && obj.layout.height == 0.0)) {
                         delete obj.layout;
