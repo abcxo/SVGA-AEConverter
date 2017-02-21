@@ -5,7 +5,7 @@ var pkg = require('./package.json');
 gulp.task('build', ['concat', 'platforms']);
 
 gulp.task('concat', function () {
-    gulp.src(['./transformation-matrix.js', './json2.js', './svga.js'])
+    gulp.src(['./transformation-matrix.js', './json2.js', './source/converter/*.js', './source/writer/*.js', './source/app/svga.js'])
     .pipe(concat('svga.jsx'))
     .pipe(gulp.dest('./build/' + pkg.version + '/'));
 });

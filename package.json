@@ -4,7 +4,7 @@
   "description": "",
   "main": "svga.js",
   "scripts": {
-    "start": "tsc svga.ts --target ES5 & gulp build"
+    "start": "tsc source/app/svga.ts --target ES5 & gulp build"
   },
   "repository": {
     "type": "git",
