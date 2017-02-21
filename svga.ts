@@ -122,6 +122,7 @@ namespace SVGA {
             stroke: string;
             strokeWidth: number;
         };
+        transform?: Matrix2D;
     }
 
     interface Layer {
@@ -209,7 +210,6 @@ namespace SVGA {
                     continue;
                 }
                 if (element.matchName === "ADBE Vector Layer") {
-                    let shapes = this.requestShapes(element);
                     if (parentValues) {
                         this.layers.push({
                             name: ".vector",
@@ -402,13 +402,13 @@ namespace SVGA {
                 let matrix = new Matrix();
                 matrix.translate(-ax, -ay).scale(sx, sy).rotate(-rotation * Math.PI / 180);
                 matrix.translate(tx, ty);
-                var currentParnet = object.parent;
-                while (currentParnet != null && currentParnet != undefined) {
-                    matrix.translate(-currentParnet.transform["Anchor Point"].valueAtTime(cTime, true)[0], -currentParnet.transform["Anchor Point"].valueAtTime(cTime, true)[1])
-                          .scale(currentParnet.transform["Scale"].valueAtTime(cTime, true)[0] / 100.0, currentParnet.transform["Scale"].valueAtTime(cTime, true)[1] / 100.0)
-                          .rotate(currentParnet.transform["Rotation"].valueAtTime(cTime, true) * Math.PI / 180);
-                    matrix.translate(currentParnet.transform["Position"].valueAtTime(cTime, true)[0], currentParnet.transform["Position"].valueAtTime(cTime, true)[1]);
-                    currentParnet = currentParnet.parent;
+                let currentParent = object.parent;
+                while (currentParent != null && currentParent != undefined) {
+                    matrix.translate(-currentParent.transform["Anchor Point"].valueAtTime(cTime, true)[0], -currentParent.transform["Anchor Point"].valueAtTime(cTime, true)[1])
+                          .scale(currentParent.transform["Scale"].valueAtTime(cTime, true)[0] / 100.0, currentParent.transform["Scale"].valueAtTime(cTime, true)[1] / 100.0)
+                          .rotate(-(currentParent.transform["Rotation"].valueAtTime(cTime, true)) * Math.PI / 180);
+                    matrix.translate(currentParent.transform["Position"].valueAtTime(cTime, true)[0], currentParent.transform["Position"].valueAtTime(cTime, true)[1]);
+                    currentParent = currentParent.parent;
                 }
                 value.push({
                     a: matrix.props[0],
@@ -486,28 +486,21 @@ namespace SVGA {
         requestShapes(layer: AE.AVLayer): Shape2D[][] {
             let values: Shape2D[][] = []
             let step = 1.0 / this.proj.frameRate;
-            var lastValue: string = ""
             for (var cTime = 0.0; cTime < step * this.proj.frameCount; cTime += step) {
                 let value = this.requestShapesAtTime(layer, cTime)
-                if (lastValue === JSON.stringify(value)) {
-                    let keep: Shape2D = {
-                        type: "keep"
-                    }
-                    values.push([keep])
-                }
-                else {
-                    lastValue = JSON.stringify(value)
-                    values.push(value);
-                }
+                values.push(value);
             }
             return values;
         }
 
         requestShapesAtTime(layer: AE.AVLayer, cTime: number, parent?: AE.AVLayer): Shape2D[] {
             var shapes: Shape2D[] = []
+            if (!layer.enabled) {
+                return shapes;
+            }
             if (layer.matchName == "ADBE Vector Shape - Group") {
                 let pathContents = layer.property('Path');
-                let path = pathContents.valueAtTime(cTime, false);
+                let path = pathContents.valueAtTime(cTime, true);
                 let inTangents = path.inTangents as number[][]
                 let outTangents = path.outTangents as number[][]
                 let vertices = path.vertices as number[][]
@@ -546,9 +539,10 @@ namespace SVGA {
                     args: {
                         d: d,
                     },
-                    styles: this.requestShapeStyles(layer, parent, cTime)
+                    styles: this.requestShapeStyles(layer, parent, cTime),
+                    transform: this.requestShapeTransform(parent, cTime),
                 }
-                shapes.push(shape);
+                shapes.unshift(shape);
             }
             else if (layer.matchName == "ADBE Vector Shape - Ellipse") {
                 let sizeContents = layer.property('Size');
@@ -563,9 +557,29 @@ namespace SVGA {
                         radiusX: size[0] / 2.0,
                         radiusY: size[1] / 2.0,
                     },
-                    styles: this.requestShapeStyles(layer, parent, cTime)
+                    styles: this.requestShapeStyles(layer, parent, cTime),
+                    transform: this.requestShapeTransform(parent, cTime),
                 }
-                shapes.push(shape);
+                shapes.unshift(shape);
+            }
+            else if (layer.matchName == "ADBE Vector Shape - Rect") {
+                let sizeContents = layer.property('Size');
+                let size = sizeContents.valueAtTime(cTime, true);
+                let positionContents = layer.property('Position');
+                let position = positionContents.valueAtTime(cTime, true);
+                let shape: Shape2D = {
+                    type: "rect",
+                    args: {
+                        x: position[0] - size[0] / 2.0,
+                        y: position[1] - size[1] / 2.0,
+                        width: size[0],
+                        height: size[1],
+                        cornerRadius: layer.property('Roundness').valueAtTime(cTime, true),
+                    },
+                    styles: this.requestShapeStyles(layer, parent, cTime),
+                    transform: this.requestShapeTransform(parent, cTime),
+                }
+                shapes.unshift(shape);
             }
             else {
                 let contents = layer.property('Contents');
@@ -576,7 +590,7 @@ namespace SVGA {
                         let results = this.requestShapesAtTime(sublayer, cTime, layer);
                         for (var i = 0; i < results.length; i++) {
                             var element = results[i];
-                            shapes.push(element);
+                            shapes.unshift(element);
                         }
                     }
                 }
@@ -587,9 +601,12 @@ namespace SVGA {
         requestShapeStyles(layer: AE.AVLayer, parent: AE.AVLayer, cTime: number): any {
             let styles: any = {}
             let contents = parent.property('Contents');
-            let numProperties: number = contents.numProperties
+            let numProperties: number = contents.numProperties;
             for (let index = 0; index < numProperties; index += 1) {
                 let sublayer: AE.AVLayer = contents.property(index + 1)
+                if (!sublayer.enabled) {
+                    continue;
+                }
                 if (sublayer.matchName == "ADBE Vector Graphic - Fill") {
                     styles.fill = sublayer.property('Color').valueAtTime(cTime, true)
                 }
@@ -599,6 +616,28 @@ namespace SVGA {
                 }
             }
             return styles
+        }
+
+        requestShapeTransform(parent: AE.AVLayer, cTime: number): Matrix2D {
+            let transform = parent.property('Transform');
+            let rotation = transform["Rotation"].valueAtTime(cTime, true);
+            let ax = transform["Anchor Point"].valueAtTime(cTime, true)[0];
+            let ay = transform["Anchor Point"].valueAtTime(cTime, true)[1];
+            let sx = transform["Scale"].valueAtTime(cTime, true)[0] / 100.0;
+            let sy = transform["Scale"].valueAtTime(cTime, true)[1] / 100.0;
+            let tx = transform["Position"].valueAtTime(cTime, true)[0];
+            let ty = transform["Position"].valueAtTime(cTime, true)[1];
+            let matrix = new Matrix();
+            matrix.translate(-ax, -ay).scale(sx, sy).rotate(-rotation * Math.PI / 180);
+            matrix.translate(tx, ty);
+            return {
+                a: matrix.props[0],
+                b: matrix.props[1],
+                c: matrix.props[4],
+                d: matrix.props[5],
+                tx: matrix.props[12],
+                ty: matrix.props[13],
+            }
         }
 
         mergeLayers() {

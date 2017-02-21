@@ -897,7 +897,6 @@ var SVGA;
                     continue;
                 }
                 if (element.matchName === "ADBE Vector Layer") {
-                    var shapes = this.requestShapes(element);
                     if (parentValues) {
                         this.layers.push({
                             name: ".vector",
@@ -1087,13 +1086,13 @@ var SVGA;
                 var matrix = new Matrix();
                 matrix.translate(-ax, -ay).scale(sx, sy).rotate(-rotation * Math.PI / 180);
                 matrix.translate(tx, ty);
-                var currentParnet = object.parent;
-                while (currentParnet != null && currentParnet != undefined) {
-                    matrix.translate(-currentParnet.transform["Anchor Point"].valueAtTime(cTime, true)[0], -currentParnet.transform["Anchor Point"].valueAtTime(cTime, true)[1])
-                        .scale(currentParnet.transform["Scale"].valueAtTime(cTime, true)[0] / 100.0, currentParnet.transform["Scale"].valueAtTime(cTime, true)[1] / 100.0)
-                        .rotate(currentParnet.transform["Rotation"].valueAtTime(cTime, true) * Math.PI / 180);
-                    matrix.translate(currentParnet.transform["Position"].valueAtTime(cTime, true)[0], currentParnet.transform["Position"].valueAtTime(cTime, true)[1]);
-                    currentParnet = currentParnet.parent;
+                var currentParent = object.parent;
+                while (currentParent != null && currentParent != undefined) {
+                    matrix.translate(-currentParent.transform["Anchor Point"].valueAtTime(cTime, true)[0], -currentParent.transform["Anchor Point"].valueAtTime(cTime, true)[1])
+                        .scale(currentParent.transform["Scale"].valueAtTime(cTime, true)[0] / 100.0, currentParent.transform["Scale"].valueAtTime(cTime, true)[1] / 100.0)
+                        .rotate(-(currentParent.transform["Rotation"].valueAtTime(cTime, true)) * Math.PI / 180);
+                    matrix.translate(currentParent.transform["Position"].valueAtTime(cTime, true)[0], currentParent.transform["Position"].valueAtTime(cTime, true)[1]);
+                    currentParent = currentParent.parent;
                 }
                 value.push({
                     a: matrix.props[0],
@@ -1168,27 +1167,20 @@ var SVGA;
         Converter.prototype.requestShapes = function (layer) {
             var values = [];
             var step = 1.0 / this.proj.frameRate;
-            var lastValue = "";
             for (var cTime = 0.0; cTime < step * this.proj.frameCount; cTime += step) {
                 var value = this.requestShapesAtTime(layer, cTime);
-                if (lastValue === JSON.stringify(value)) {
-                    var keep = {
-                        type: "keep"
-                    };
-                    values.push([keep]);
-                }
-                else {
-                    lastValue = JSON.stringify(value);
-                    values.push(value);
-                }
+                values.push(value);
             }
             return values;
         };
         Converter.prototype.requestShapesAtTime = function (layer, cTime, parent) {
             var shapes = [];
+            if (!layer.enabled) {
+                return shapes;
+            }
             if (layer.matchName == "ADBE Vector Shape - Group") {
                 var pathContents = layer.property('Path');
-                var path = pathContents.valueAtTime(cTime, false);
+                var path = pathContents.valueAtTime(cTime, true);
                 var inTangents = path.inTangents;
                 var outTangents = path.outTangents;
                 var vertices = path.vertices;
@@ -1227,9 +1219,10 @@ var SVGA;
                     args: {
                         d: d,
                     },
-                    styles: this.requestShapeStyles(layer, parent, cTime)
+                    styles: this.requestShapeStyles(layer, parent, cTime),
+                    transform: this.requestShapeTransform(parent, cTime),
                 };
-                shapes.push(shape);
+                shapes.unshift(shape);
             }
             else if (layer.matchName == "ADBE Vector Shape - Ellipse") {
                 var sizeContents = layer.property('Size');
@@ -1244,9 +1237,29 @@ var SVGA;
                         radiusX: size[0] / 2.0,
                         radiusY: size[1] / 2.0,
                     },
-                    styles: this.requestShapeStyles(layer, parent, cTime)
+                    styles: this.requestShapeStyles(layer, parent, cTime),
+                    transform: this.requestShapeTransform(parent, cTime),
                 };
-                shapes.push(shape);
+                shapes.unshift(shape);
+            }
+            else if (layer.matchName == "ADBE Vector Shape - Rect") {
+                var sizeContents = layer.property('Size');
+                var size = sizeContents.valueAtTime(cTime, true);
+                var positionContents = layer.property('Position');
+                var position = positionContents.valueAtTime(cTime, true);
+                var shape = {
+                    type: "rect",
+                    args: {
+                        x: position[0] - size[0] / 2.0,
+                        y: position[1] - size[1] / 2.0,
+                        width: size[0],
+                        height: size[1],
+                        cornerRadius: layer.property('Roundness').valueAtTime(cTime, true),
+                    },
+                    styles: this.requestShapeStyles(layer, parent, cTime),
+                    transform: this.requestShapeTransform(parent, cTime),
+                };
+                shapes.unshift(shape);
             }
             else {
                 var contents = layer.property('Contents');
@@ -1257,7 +1270,7 @@ var SVGA;
                         var results = this.requestShapesAtTime(sublayer, cTime, layer);
                         for (var i = 0; i < results.length; i++) {
                             var element = results[i];
-                            shapes.push(element);
+                            shapes.unshift(element);
                         }
                     }
                 }
@@ -1270,6 +1283,9 @@ var SVGA;
             var numProperties = contents.numProperties;
             for (var index = 0; index < numProperties; index += 1) {
                 var sublayer = contents.property(index + 1);
+                if (!sublayer.enabled) {
+                    continue;
+                }
                 if (sublayer.matchName == "ADBE Vector Graphic - Fill") {
                     styles.fill = sublayer.property('Color').valueAtTime(cTime, true);
                 }
@@ -1279,6 +1295,27 @@ var SVGA;
                 }
             }
             return styles;
+        };
+        Converter.prototype.requestShapeTransform = function (parent, cTime) {
+            var transform = parent.property('Transform');
+            var rotation = transform["Rotation"].valueAtTime(cTime, true);
+            var ax = transform["Anchor Point"].valueAtTime(cTime, true)[0];
+            var ay = transform["Anchor Point"].valueAtTime(cTime, true)[1];
+            var sx = transform["Scale"].valueAtTime(cTime, true)[0] / 100.0;
+            var sy = transform["Scale"].valueAtTime(cTime, true)[1] / 100.0;
+            var tx = transform["Position"].valueAtTime(cTime, true)[0];
+            var ty = transform["Position"].valueAtTime(cTime, true)[1];
+            var matrix = new Matrix();
+            matrix.translate(-ax, -ay).scale(sx, sy).rotate(-rotation * Math.PI / 180);
+            matrix.translate(tx, ty);
+            return {
+                a: matrix.props[0],
+                b: matrix.props[1],
+                c: matrix.props[4],
+                d: matrix.props[5],
+                tx: matrix.props[12],
+                ty: matrix.props[13],
+            };
         };
         Converter.prototype.mergeLayers = function () {
             var rangeLength = 1;
