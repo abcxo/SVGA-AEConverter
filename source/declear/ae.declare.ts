@@ -26,6 +26,7 @@ namespace AE {
     }
 
     export interface AVLayer {
+        name: string;
         enabled: boolean;
         parent: AVLayer;
         source: Source;

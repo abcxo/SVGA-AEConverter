@@ -108,6 +108,7 @@ class Writer {
         for (let index = this.converter.layers.length - 1; index >= 0; index--) {
             let element = this.converter.layers[index];
             let frames = [];
+            let lastShapeHash = "";
             for (let index = 0; index < this.converter.proj.frameCount; index++) {
                 let obj = {
                     alpha: element.values.alpha[index],
@@ -129,8 +130,45 @@ class Writer {
                 if (obj.transform === undefined || (obj.transform.a == 1.0 && obj.transform.b == 0.0 && obj.transform.c == 0.0 && obj.transform.d == 1.0 && obj.transform.tx == 0.0 && obj.transform.ty == 0.0)) {
                     delete obj.transform;
                 }
+                else {
+                    obj.transform.a = parseFloat(obj.transform.a.toFixed(3))
+                    obj.transform.b = parseFloat(obj.transform.b.toFixed(3))
+                    obj.transform.c = parseFloat(obj.transform.c.toFixed(3))
+                    obj.transform.d = parseFloat(obj.transform.d.toFixed(3))
+                    obj.transform.tx = parseFloat(obj.transform.tx.toFixed(3))
+                    obj.transform.ty = parseFloat(obj.transform.ty.toFixed(3))
+                }
                 if (obj.clipPath === undefined || typeof obj.clipPath !== "string" || obj.clipPath === "") {
                     delete obj.clipPath;
+                }
+                if (obj.shapes != undefined && obj.shapes != null) {
+                    for (let index = 0; index < obj.shapes.length; index++) {
+                        let element = obj.shapes[index];
+                        if (element.transform === undefined || (element.transform.a == 1.0 && element.transform.b == 0.0 && element.transform.c == 0.0 && element.transform.d == 1.0 && element.transform.tx == 0.0 && element.transform.ty == 0.0)) {
+                            delete element.transform;
+                        }
+                        else {
+                            element.transform.a = parseFloat(element.transform.a.toFixed(3))
+                            element.transform.b = parseFloat(element.transform.b.toFixed(3))
+                            element.transform.c = parseFloat(element.transform.c.toFixed(3))
+                            element.transform.d = parseFloat(element.transform.d.toFixed(3))
+                            element.transform.tx = parseFloat(element.transform.tx.toFixed(3))
+                            element.transform.ty = parseFloat(element.transform.ty.toFixed(3))
+                        }
+                    }
+                    if (lastShapeHash === JSON.stringify(obj.shapes)) {
+                        obj.shapes = [
+                            {
+                                type: "keep",
+                            }
+                        ]
+                    }
+                    else {
+                        lastShapeHash = JSON.stringify(obj.shapes);
+                    }
+                }
+                else {
+                    lastShapeHash = "";
                 }
                 frames.push(obj);
             }

@@ -39,7 +39,7 @@ class Converter {
             if (element.enabled === false || element.source === null || element.source === undefined) {
                 continue;
             }
-            if (element.source && element.source.file) {
+            if (element.source instanceof Object && element.source.file) {
                 if (m[element.source.id] === true) {
                     continue;
                 }
@@ -68,7 +68,7 @@ class Converter {
                     })
                 }
             }
-            else if (element.source.numLayers > 0) {
+            else if (element.source instanceof Object && element.source.numLayers > 0) {
                 this.loadRes(element.source.layers, element.source.numLayers);
             }
         }
@@ -83,7 +83,7 @@ class Converter {
             if (element.matchName === "ADBE Vector Layer") {
                 if (parentValues) {
                     this.layers.push({
-                        name: ".vector",
+                        name: element.name + ".vector",
                         values: this.concatValues(parentValues, {
                                 alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                                 layout: this.requestLayout(element.width, element.height),
@@ -95,7 +95,7 @@ class Converter {
                 }
                 else {
                     this.layers.push({
-                        name: ".vector",
+                        name: element.name + ".vector",
                         values: {
                                 alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                                 layout: this.requestLayout(element.width, element.height),
@@ -106,7 +106,7 @@ class Converter {
                     });
                 }
             }
-            else if (element.source && element.source.file) {
+            else if (element.source instanceof Object && element.source.file) {
                 var eName: string = element.source.name;
                 if (eName.indexOf('.psd') > 0) {
                     eName = "psd_" + element.source.id + ".png";
@@ -144,7 +144,7 @@ class Converter {
                     });
                 }
             }
-            else if (element.source.numLayers > 0) {
+            else if (element.source instanceof Object && element.source.numLayers > 0) {
                 var nextParents = [];
                 if (parents !== undefined) {
                     for (var index = 0; index < parents.length; index++) {
@@ -174,7 +174,7 @@ class Converter {
 
     concatValues(a: any, b: any, width: number, height: number, startTime: number): any {
         let c: any = JSON.parse(JSON.stringify(a));
-        let startIndex = Math.round(startTime / (1.0 / this.proj.frameRate));
+        let startIndex = startTime / (1.0 / Math.round(this.proj.frameRate));
         for (let aIndex = startIndex, bIndex = 0; bIndex < b.alpha.length; aIndex++ , bIndex++) {
             if (aIndex < 0) {
                 continue;
@@ -329,16 +329,16 @@ class Converter {
                     for (var index = 0; index < vertices.length; index++) {
                         var currentPoint = vertices[index];
                         if (lastPoint === undefined) {
-                            drawPath += " M" + Math.round(currentPoint[0]) + "," + Math.round(currentPoint[1]);
+                            drawPath += " M" + currentPoint[0].toFixed(3) + "," + currentPoint[1].toFixed(3);
                             lastPoint = currentPoint;
                         }
                         else {
-                            drawPath += " C" + Math.round(lastPoint[0]) + "," + Math.round(lastPoint[1]) + " " + Math.round(currentPoint[0]) + "," + Math.round(currentPoint[1]) + " " + Math.round(currentPoint[0]) + "," + Math.round(currentPoint[1]);
+                            drawPath += " C" + lastPoint[0].toFixed(3) + "," + lastPoint[1].toFixed(3) + " " + currentPoint[0].toFixed(3) + "," + currentPoint[1].toFixed(3) + " " + currentPoint[0].toFixed(3) + "," + currentPoint[1].toFixed(3);
                             lastPoint = currentPoint;
                         }
                     }
                     if (closed) {
-                        drawPath += " C" + Math.round(lastPoint[0]) + "," + Math.round(lastPoint[1]) + " " + Math.round(vertices[0][0]) + "," + Math.round(vertices[0][1]) + " " + Math.round(vertices[0][0]) + "," + Math.round(vertices[0][1]);
+                        drawPath += " C" + lastPoint[0].toFixed(3) + "," + lastPoint[1].toFixed(3) + " " + vertices[0][0].toFixed(3) + "," + vertices[0][1].toFixed(3) + " " + vertices[0][0].toFixed(3) + "," + vertices[0][1].toFixed(3);
                     }
                     if (inverted) {
                         finalPath = solidPath + drawPath;
@@ -381,24 +381,27 @@ class Converter {
                 var it = inTangents[index];
                 var ot = outTangents[index];
                 if (index == 0) {
-                    d += "M " + vertex[0] + " " + vertex[1] + " ";
+                    d += "M " + vertex[0].toFixed(3) + " " + vertex[1].toFixed(3) + " ";
                 }
                 else if (index == vertices.length) {
-                    d += "C " + (vertices[index - 1][0] + outTangents[index - 1][0]) +
-                            " " + (vertices[index - 1][1] + outTangents[index - 1][1]) + 
-                            " " + (vertices[0][0] + inTangents[0][0]) + 
-                            " " + (vertices[0][1] + inTangents[0][1]) + 
-                            " " + (vertices[0][0]) + 
-                            " " + (vertices[0][1]) + 
+                    if (!path.closed) {
+                        continue;
+                    }
+                    d += "C " + (vertices[index - 1][0] + outTangents[index - 1][0]).toFixed(3) +
+                            " " + (vertices[index - 1][1] + outTangents[index - 1][1]).toFixed(3) + 
+                            " " + (vertices[0][0] + inTangents[0][0]).toFixed(3) + 
+                            " " + (vertices[0][1] + inTangents[0][1]).toFixed(3) + 
+                            " " + (vertices[0][0]).toFixed(3) + 
+                            " " + (vertices[0][1]).toFixed(3) + 
                             " ";
                 }
                 else {
-                    d += "C " + (vertices[index - 1][0] + outTangents[index - 1][0]) + 
-                            " " + (vertices[index - 1][1] + outTangents[index - 1][1]) + 
-                            " " + (vertex[0] + inTangents[index][0]) + 
-                            " " + (vertex[1] + inTangents[index][1]) + 
-                            " " + (vertex[0]) + 
-                            " " + (vertex[1]) + 
+                    d += "C " + (vertices[index - 1][0] + outTangents[index - 1][0]).toFixed(3) + 
+                            " " + (vertices[index - 1][1] + outTangents[index - 1][1]).toFixed(3) + 
+                            " " + (vertex[0] + inTangents[index][0]).toFixed(3) + 
+                            " " + (vertex[1] + inTangents[index][1]).toFixed(3) + 
+                            " " + (vertex[0]).toFixed(3) + 
+                            " " + (vertex[1]).toFixed(3) + 
                             " ";
                 }
             }
@@ -484,6 +487,53 @@ class Converter {
             else if (sublayer.matchName == "ADBE Vector Graphic - Stroke") {
                 styles.stroke = sublayer.property('Color').valueAtTime(cTime, true)
                 styles.strokeWidth = sublayer.property('Stroke Width').valueAtTime(cTime, true)
+                let lineCap = sublayer.property('Line Cap').valueAtTime(cTime, true)
+                switch (lineCap) {
+                    case 1: styles.lineCap = "butt";
+                        break;
+                    case 2: styles.lineCap = "round";
+                        break;
+                    case 3: styles.lineCap = "square";
+                        break;
+                }
+                let lineJoin = sublayer.property('Line Join').valueAtTime(cTime, true)
+                switch (lineJoin) {
+                    case 1: styles.lineJoin = "miter";
+                            styles.miterLimit = sublayer.property('Miter Limit').valueAtTime(cTime, true)
+                        break;
+                    case 2: styles.lineJoin = "round";
+                        break;
+                    case 3: styles.lineJoin = "bevel";
+                        break;
+                }
+                let dashObject = sublayer.property('Dashes');
+                if (dashObject != null && dashObject != undefined) {
+                    let j, jLen = dashObject.numProperties;
+                    if (jLen > 0) {
+                        let dashesData = [];
+                        let dash = 0;
+                        let gap = 0;
+                        let offset = 0;
+                        for (j = 0; j < jLen; j += 1) {
+                            if (dashObject.property(j + 1).canSetExpression) {
+                                var dashData = {};
+                                var name = '';
+                                if (dashObject.property(j + 1).matchName.indexOf('ADBE Vector Stroke Dash') !== -1) {
+                                    dash = dashObject.property(j + 1).valueAtTime(cTime, true);
+                                } 
+                                else if (dashObject.property(j + 1).matchName.indexOf('ADBE Vector Stroke Gap') !== -1) {
+                                    gap = dashObject.property(j + 1).valueAtTime(cTime, true);
+                                } 
+                                else if (dashObject.property(j + 1).matchName === 'ADBE Vector Stroke Offset') {
+                                    offset = dashObject.property(j + 1).valueAtTime(cTime, true);
+                                }
+                            }
+                        }
+                        if (dash != 0 || gap != 0 || offset != 0) {
+                            styles.lineDash = [dash, gap, offset];
+                        }
+                    }
+                }
             }
         }
         return styles

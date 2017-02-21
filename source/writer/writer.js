@@ -99,6 +99,7 @@ var Writer = (function () {
         for (var index = this.converter.layers.length - 1; index >= 0; index--) {
             var element = this.converter.layers[index];
             var frames_1 = [];
+            var lastShapeHash = "";
             for (var index_1 = 0; index_1 < this.converter.proj.frameCount; index_1++) {
                 var obj = {
                     alpha: element.values.alpha[index_1],
@@ -120,8 +121,45 @@ var Writer = (function () {
                 if (obj.transform === undefined || (obj.transform.a == 1.0 && obj.transform.b == 0.0 && obj.transform.c == 0.0 && obj.transform.d == 1.0 && obj.transform.tx == 0.0 && obj.transform.ty == 0.0)) {
                     delete obj.transform;
                 }
+                else {
+                    obj.transform.a = parseFloat(obj.transform.a.toFixed(3));
+                    obj.transform.b = parseFloat(obj.transform.b.toFixed(3));
+                    obj.transform.c = parseFloat(obj.transform.c.toFixed(3));
+                    obj.transform.d = parseFloat(obj.transform.d.toFixed(3));
+                    obj.transform.tx = parseFloat(obj.transform.tx.toFixed(3));
+                    obj.transform.ty = parseFloat(obj.transform.ty.toFixed(3));
+                }
                 if (obj.clipPath === undefined || typeof obj.clipPath !== "string" || obj.clipPath === "") {
                     delete obj.clipPath;
+                }
+                if (obj.shapes != undefined && obj.shapes != null) {
+                    for (var index_2 = 0; index_2 < obj.shapes.length; index_2++) {
+                        var element_1 = obj.shapes[index_2];
+                        if (element_1.transform === undefined || (element_1.transform.a == 1.0 && element_1.transform.b == 0.0 && element_1.transform.c == 0.0 && element_1.transform.d == 1.0 && element_1.transform.tx == 0.0 && element_1.transform.ty == 0.0)) {
+                            delete element_1.transform;
+                        }
+                        else {
+                            element_1.transform.a = parseFloat(element_1.transform.a.toFixed(3));
+                            element_1.transform.b = parseFloat(element_1.transform.b.toFixed(3));
+                            element_1.transform.c = parseFloat(element_1.transform.c.toFixed(3));
+                            element_1.transform.d = parseFloat(element_1.transform.d.toFixed(3));
+                            element_1.transform.tx = parseFloat(element_1.transform.tx.toFixed(3));
+                            element_1.transform.ty = parseFloat(element_1.transform.ty.toFixed(3));
+                        }
+                    }
+                    if (lastShapeHash === JSON.stringify(obj.shapes)) {
+                        obj.shapes = [
+                            {
+                                type: "keep",
+                            }
+                        ];
+                    }
+                    else {
+                        lastShapeHash = JSON.stringify(obj.shapes);
+                    }
+                }
+                else {
+                    lastShapeHash = "";
                 }
                 frames_1.push(obj);
             }
