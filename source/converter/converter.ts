@@ -375,6 +375,11 @@ class Converter {
             let inTangents = path.inTangents as number[][]
             let outTangents = path.outTangents as number[][]
             let vertices = path.vertices as number[][]
+            if (layer.property("Shape Direction").valueAtTime(cTime, true) === 3) {
+                inTangents.reverse()
+                outTangents.reverse()
+                vertices.reverse()
+            }
             var d = ""
             for (var index = 0; index <= vertices.length; index++) {
                 var vertex: number[] = vertices[index];
@@ -483,6 +488,12 @@ class Converter {
             }
             if (sublayer.matchName == "ADBE Vector Graphic - Fill") {
                 styles.fill = sublayer.property('Color').valueAtTime(cTime, true)
+            }
+            else if (sublayer.matchName == "ADBE Vector Filter - Trim" || sublayer.matchName == "ADBE Vector Graphic - Trim") {
+                styles.trim = {
+                    start: sublayer.property('Start').valueAtTime(cTime, true) / 100.0,
+                    end: sublayer.property('End').valueAtTime(cTime, true) / 100.0,
+                }
             }
             else if (sublayer.matchName == "ADBE Vector Graphic - Stroke") {
                 styles.stroke = sublayer.property('Color').valueAtTime(cTime, true)
