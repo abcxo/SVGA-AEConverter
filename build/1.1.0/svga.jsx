@@ -898,16 +898,30 @@ var SVGA;
                 }
                 if (element.matchName === "ADBE Vector Layer") {
                     var shapes = this.requestShapes(element);
-                    this.layers.push({
-                        name: ".vector",
-                        values: {
-                            alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
-                            layout: this.requestLayout(element.width, element.height),
-                            matrix: this.requestMatrix(element.transform, element.width, element.height),
-                            mask: this.requestMask(element),
-                            shapes: this.requestShapes(element),
-                        }
-                    });
+                    if (parentValues) {
+                        this.layers.push({
+                            name: ".vector",
+                            values: this.concatValues(parentValues, {
+                                alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
+                                layout: this.requestLayout(element.width, element.height),
+                                matrix: this.requestMatrix(element.transform, element.width, element.height, element),
+                                mask: this.requestMask(element),
+                                shapes: this.requestShapes(element),
+                            }, element.width, element.height, startTime),
+                        });
+                    }
+                    else {
+                        this.layers.push({
+                            name: ".vector",
+                            values: {
+                                alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
+                                layout: this.requestLayout(element.width, element.height),
+                                matrix: this.requestMatrix(element.transform, element.width, element.height, element),
+                                mask: this.requestMask(element),
+                                shapes: this.requestShapes(element),
+                            }
+                        });
+                    }
                 }
                 else if (element.source && element.source.file) {
                     var eName = element.source.name;
@@ -928,7 +942,7 @@ var SVGA;
                             values: this.concatValues(parentValues, {
                                 alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                                 layout: this.requestLayout(element.width, element.height),
-                                matrix: this.requestMatrix(element.transform, element.width, element.height),
+                                matrix: this.requestMatrix(element.transform, element.width, element.height, element),
                                 mask: this.requestMask(element),
                                 shapes: [],
                             }, element.width, element.height, startTime),
@@ -940,7 +954,7 @@ var SVGA;
                             values: {
                                 alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                                 layout: this.requestLayout(element.width, element.height),
-                                matrix: this.requestMatrix(element.transform, element.width, element.height),
+                                matrix: this.requestMatrix(element.transform, element.width, element.height, element),
                                 mask: this.requestMask(element),
                                 shapes: [],
                             }
@@ -959,7 +973,7 @@ var SVGA;
                         this.loadLayer(element.source.layers, element.source.numLayers, this.concatValues(parentValues, {
                             alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                             layout: this.requestLayout(element.width, element.height),
-                            matrix: this.requestMatrix(element.transform, element.width, element.height),
+                            matrix: this.requestMatrix(element.transform, element.width, element.height, element),
                             mask: [this.requestMask(element)],
                         }, element.width, element.height, startTime), element.startTime, nextParents);
                     }
@@ -967,7 +981,7 @@ var SVGA;
                         this.loadLayer(element.source.layers, element.source.numLayers, {
                             alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                             layout: this.requestLayout(element.width, element.height),
-                            matrix: this.requestMatrix(element.transform, element.width, element.height),
+                            matrix: this.requestMatrix(element.transform, element.width, element.height, element),
                             mask: [this.requestMask(element)],
                         }, element.startTime, nextParents);
                     }
@@ -1055,24 +1069,32 @@ var SVGA;
                         continue;
                     }
                 }
-                value.push(prop.valueAtTime(cTime, false) / 100.0);
+                value.push(prop.valueAtTime(cTime, true) / 100.0);
             }
             return value;
         };
-        Converter.prototype.requestMatrix = function (transform, width, height) {
+        Converter.prototype.requestMatrix = function (transform, width, height, object) {
             var value = [];
             var step = 1.0 / this.proj.frameRate;
             for (var cTime = 0.0; cTime < step * this.proj.frameCount; cTime += step) {
-                var rotation = transform["Rotation"].valueAtTime(cTime, false);
-                var ax = transform["Anchor Point"].valueAtTime(cTime, false)[0];
-                var ay = transform["Anchor Point"].valueAtTime(cTime, false)[1];
-                var sx = transform["Scale"].valueAtTime(cTime, false)[0] / 100.0;
-                var sy = transform["Scale"].valueAtTime(cTime, false)[1] / 100.0;
-                var tx = transform["Position"].valueAtTime(cTime, false)[0];
-                var ty = transform["Position"].valueAtTime(cTime, false)[1];
+                var rotation = transform["Rotation"].valueAtTime(cTime, true);
+                var ax = transform["Anchor Point"].valueAtTime(cTime, true)[0];
+                var ay = transform["Anchor Point"].valueAtTime(cTime, true)[1];
+                var sx = transform["Scale"].valueAtTime(cTime, true)[0] / 100.0;
+                var sy = transform["Scale"].valueAtTime(cTime, true)[1] / 100.0;
+                var tx = transform["Position"].valueAtTime(cTime, true)[0];
+                var ty = transform["Position"].valueAtTime(cTime, true)[1];
                 var matrix = new Matrix();
                 matrix.translate(-ax, -ay).scale(sx, sy).rotate(-rotation * Math.PI / 180);
                 matrix.translate(tx, ty);
+                var currentParnet = object.parent;
+                while (currentParnet != null && currentParnet != undefined) {
+                    matrix.translate(-currentParnet.transform["Anchor Point"].valueAtTime(cTime, true)[0], -currentParnet.transform["Anchor Point"].valueAtTime(cTime, true)[1])
+                        .scale(currentParnet.transform["Scale"].valueAtTime(cTime, true)[0] / 100.0, currentParnet.transform["Scale"].valueAtTime(cTime, true)[1] / 100.0)
+                        .rotate(currentParnet.transform["Rotation"].valueAtTime(cTime, true) * Math.PI / 180);
+                    matrix.translate(currentParnet.transform["Position"].valueAtTime(cTime, true)[0], currentParnet.transform["Position"].valueAtTime(cTime, true)[1]);
+                    currentParnet = currentParnet.parent;
+                }
                 value.push({
                     a: matrix.props[0],
                     b: matrix.props[1],
@@ -1168,23 +1190,33 @@ var SVGA;
                 var pathContents = layer.property('Path');
                 var path = pathContents.valueAtTime(cTime, false);
                 var inTangents = path.inTangents;
+                var outTangents = path.outTangents;
                 var vertices = path.vertices;
                 var d = "";
                 for (var index = 0; index <= vertices.length; index++) {
                     var vertex = vertices[index];
                     var it = inTangents[index];
+                    var ot = outTangents[index];
                     if (index == 0) {
                         d += "M " + vertex[0] + " " + vertex[1] + " ";
                     }
                     else if (index == vertices.length) {
-                        d += "C " + (vertices[index - 1][0] - inTangents[index - 1][0]) + " " + (vertices[index - 1][1] - inTangents[index - 1][1]) + " " +
-                            (vertices[0][0] + inTangents[0][0]) + " " + (vertices[0][1] + inTangents[0][1]) + " " +
-                            (vertices[0][0]) + " " + (vertices[0][1]) + " ";
+                        d += "C " + (vertices[index - 1][0] + outTangents[index - 1][0]) +
+                            " " + (vertices[index - 1][1] + outTangents[index - 1][1]) +
+                            " " + (vertices[0][0] + inTangents[0][0]) +
+                            " " + (vertices[0][1] + inTangents[0][1]) +
+                            " " + (vertices[0][0]) +
+                            " " + (vertices[0][1]) +
+                            " ";
                     }
                     else {
-                        d += "C " + (vertices[index - 1][0] - inTangents[index - 1][0]) + " " + (vertices[index - 1][1] - inTangents[index - 1][1]) + " " +
-                            (vertex[0] + inTangents[index][0]) + " " + (vertex[1] + inTangents[index][1]) + " " +
-                            (vertex[0]) + " " + (vertex[1]) + " ";
+                        d += "C " + (vertices[index - 1][0] + outTangents[index - 1][0]) +
+                            " " + (vertices[index - 1][1] + outTangents[index - 1][1]) +
+                            " " + (vertex[0] + inTangents[index][0]) +
+                            " " + (vertex[1] + inTangents[index][1]) +
+                            " " + (vertex[0]) +
+                            " " + (vertex[1]) +
+                            " ";
                     }
                 }
                 if (path.closed) {
@@ -1194,6 +1226,23 @@ var SVGA;
                     type: "shape",
                     args: {
                         d: d,
+                    },
+                    styles: this.requestShapeStyles(layer, parent, cTime)
+                };
+                shapes.push(shape);
+            }
+            else if (layer.matchName == "ADBE Vector Shape - Ellipse") {
+                var sizeContents = layer.property('Size');
+                var size = sizeContents.valueAtTime(cTime, true);
+                var positionContents = layer.property('Position');
+                var position = positionContents.valueAtTime(cTime, true);
+                var shape = {
+                    type: "ellipse",
+                    args: {
+                        x: position[0],
+                        y: position[1],
+                        radiusX: size[0] / 2.0,
+                        radiusY: size[1] / 2.0,
                     },
                     styles: this.requestShapeStyles(layer, parent, cTime)
                 };

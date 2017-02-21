@@ -210,16 +210,30 @@ namespace SVGA {
                 }
                 if (element.matchName === "ADBE Vector Layer") {
                     let shapes = this.requestShapes(element);
-                    this.layers.push({
-                        name: ".vector",
-                        values: {
-                                alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
-                                layout: this.requestLayout(element.width, element.height),
-                                matrix: this.requestMatrix(element.transform, element.width, element.height),
-                                mask: this.requestMask(element),
-                                shapes: this.requestShapes(element),
-                        }
-                    });
+                    if (parentValues) {
+                        this.layers.push({
+                            name: ".vector",
+                            values: this.concatValues(parentValues, {
+                                    alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
+                                    layout: this.requestLayout(element.width, element.height),
+                                    matrix: this.requestMatrix(element.transform, element.width, element.height, element),
+                                    mask: this.requestMask(element),
+                                    shapes: this.requestShapes(element),
+                            }, element.width, element.height, startTime),
+                        });
+                    }
+                    else {
+                        this.layers.push({
+                            name: ".vector",
+                            values: {
+                                    alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
+                                    layout: this.requestLayout(element.width, element.height),
+                                    matrix: this.requestMatrix(element.transform, element.width, element.height, element),
+                                    mask: this.requestMask(element),
+                                    shapes: this.requestShapes(element),
+                            }
+                        });
+                    }
                 }
                 else if (element.source && element.source.file) {
                     var eName: string = element.source.name;
@@ -240,7 +254,7 @@ namespace SVGA {
                             values: this.concatValues(parentValues, {
                                 alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                                 layout: this.requestLayout(element.width, element.height),
-                                matrix: this.requestMatrix(element.transform, element.width, element.height),
+                                matrix: this.requestMatrix(element.transform, element.width, element.height, element),
                                 mask: this.requestMask(element),
                                 shapes: [],
                             }, element.width, element.height, startTime),
@@ -252,7 +266,7 @@ namespace SVGA {
                             values: {
                                 alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                                 layout: this.requestLayout(element.width, element.height),
-                                matrix: this.requestMatrix(element.transform, element.width, element.height),
+                                matrix: this.requestMatrix(element.transform, element.width, element.height, element),
                                 mask: this.requestMask(element),
                                 shapes: [],
                             }
@@ -271,7 +285,7 @@ namespace SVGA {
                         this.loadLayer(element.source.layers, element.source.numLayers, this.concatValues(parentValues, {
                             alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                             layout: this.requestLayout(element.width, element.height),
-                            matrix: this.requestMatrix(element.transform, element.width, element.height),
+                            matrix: this.requestMatrix(element.transform, element.width, element.height, element),
                             mask: [this.requestMask(element)],
                         }, element.width, element.height, startTime), element.startTime, nextParents);
                     }
@@ -279,7 +293,7 @@ namespace SVGA {
                         this.loadLayer(element.source.layers, element.source.numLayers, {
                             alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                             layout: this.requestLayout(element.width, element.height),
-                            matrix: this.requestMatrix(element.transform, element.width, element.height),
+                            matrix: this.requestMatrix(element.transform, element.width, element.height, element),
                             mask: [this.requestMask(element)],
                         }, element.startTime, nextParents);
                     }
@@ -369,25 +383,33 @@ namespace SVGA {
                         continue;
                     }
                 }
-                value.push(prop.valueAtTime(cTime, false) / 100.0);
+                value.push(prop.valueAtTime(cTime, true) / 100.0);
             }
             return value;
         }
 
-        requestMatrix(transform: AE.Transform, width: number, height: number): Matrix2D[] {
+        requestMatrix(transform: AE.Transform, width: number, height: number, object: AE.AVLayer): Matrix2D[] {
             let value: Matrix2D[] = [];
             let step = 1.0 / this.proj.frameRate;
             for (var cTime = 0.0; cTime < step * this.proj.frameCount; cTime += step) {
-                let rotation = transform["Rotation"].valueAtTime(cTime, false);
-                let ax = transform["Anchor Point"].valueAtTime(cTime, false)[0];
-                let ay = transform["Anchor Point"].valueAtTime(cTime, false)[1];
-                let sx = transform["Scale"].valueAtTime(cTime, false)[0] / 100.0;
-                let sy = transform["Scale"].valueAtTime(cTime, false)[1] / 100.0;
-                let tx = transform["Position"].valueAtTime(cTime, false)[0];
-                let ty = transform["Position"].valueAtTime(cTime, false)[1];
+                let rotation = transform["Rotation"].valueAtTime(cTime, true);
+                let ax = transform["Anchor Point"].valueAtTime(cTime, true)[0];
+                let ay = transform["Anchor Point"].valueAtTime(cTime, true)[1];
+                let sx = transform["Scale"].valueAtTime(cTime, true)[0] / 100.0;
+                let sy = transform["Scale"].valueAtTime(cTime, true)[1] / 100.0;
+                let tx = transform["Position"].valueAtTime(cTime, true)[0];
+                let ty = transform["Position"].valueAtTime(cTime, true)[1];
                 let matrix = new Matrix();
                 matrix.translate(-ax, -ay).scale(sx, sy).rotate(-rotation * Math.PI / 180);
                 matrix.translate(tx, ty);
+                var currentParnet = object.parent;
+                while (currentParnet != null && currentParnet != undefined) {
+                    matrix.translate(-currentParnet.transform["Anchor Point"].valueAtTime(cTime, true)[0], -currentParnet.transform["Anchor Point"].valueAtTime(cTime, true)[1])
+                          .scale(currentParnet.transform["Scale"].valueAtTime(cTime, true)[0] / 100.0, currentParnet.transform["Scale"].valueAtTime(cTime, true)[1] / 100.0)
+                          .rotate(currentParnet.transform["Rotation"].valueAtTime(cTime, true) * Math.PI / 180);
+                    matrix.translate(currentParnet.transform["Position"].valueAtTime(cTime, true)[0], currentParnet.transform["Position"].valueAtTime(cTime, true)[1]);
+                    currentParnet = currentParnet.parent;
+                }
                 value.push({
                     a: matrix.props[0],
                     b: matrix.props[1],
@@ -487,23 +509,33 @@ namespace SVGA {
                 let pathContents = layer.property('Path');
                 let path = pathContents.valueAtTime(cTime, false);
                 let inTangents = path.inTangents as number[][]
+                let outTangents = path.outTangents as number[][]
                 let vertices = path.vertices as number[][]
                 var d = ""
                 for (var index = 0; index <= vertices.length; index++) {
                     var vertex: number[] = vertices[index];
                     var it = inTangents[index];
+                    var ot = outTangents[index];
                     if (index == 0) {
                         d += "M " + vertex[0] + " " + vertex[1] + " ";
                     }
                     else if (index == vertices.length) {
-                        d += "C " + (vertices[index - 1][0] - inTangents[index - 1][0]) + " " + (vertices[index - 1][1] - inTangents[index - 1][1]) + " " + 
-                             (vertices[0][0] + inTangents[0][0]) + " " + (vertices[0][1] + inTangents[0][1]) + " " + 
-                             (vertices[0][0]) + " " + (vertices[0][1]) + " ";
+                        d += "C " + (vertices[index - 1][0] + outTangents[index - 1][0]) +
+                             " " + (vertices[index - 1][1] + outTangents[index - 1][1]) + 
+                             " " + (vertices[0][0] + inTangents[0][0]) + 
+                             " " + (vertices[0][1] + inTangents[0][1]) + 
+                             " " + (vertices[0][0]) + 
+                             " " + (vertices[0][1]) + 
+                             " ";
                     }
                     else {
-                        d += "C " + (vertices[index - 1][0] - inTangents[index - 1][0]) + " " + (vertices[index - 1][1] - inTangents[index - 1][1]) + " " + 
-                             (vertex[0] + inTangents[index][0]) + " " + (vertex[1] + inTangents[index][1]) + " " + 
-                             (vertex[0]) + " " + (vertex[1]) + " ";
+                        d += "C " + (vertices[index - 1][0] + outTangents[index - 1][0]) + 
+                             " " + (vertices[index - 1][1] + outTangents[index - 1][1]) + 
+                             " " + (vertex[0] + inTangents[index][0]) + 
+                             " " + (vertex[1] + inTangents[index][1]) + 
+                             " " + (vertex[0]) + 
+                             " " + (vertex[1]) + 
+                             " ";
                     }
                 }
                 if (path.closed) {
@@ -513,6 +545,23 @@ namespace SVGA {
                     type: "shape",
                     args: {
                         d: d,
+                    },
+                    styles: this.requestShapeStyles(layer, parent, cTime)
+                }
+                shapes.push(shape);
+            }
+            else if (layer.matchName == "ADBE Vector Shape - Ellipse") {
+                let sizeContents = layer.property('Size');
+                let size = sizeContents.valueAtTime(cTime, true);
+                let positionContents = layer.property('Position');
+                let position = positionContents.valueAtTime(cTime, true);
+                let shape: Shape2D = {
+                    type: "ellipse",
+                    args: {
+                        x: position[0],
+                        y: position[1],
+                        radiusX: size[0] / 2.0,
+                        radiusY: size[1] / 2.0,
                     },
                     styles: this.requestShapeStyles(layer, parent, cTime)
                 }
