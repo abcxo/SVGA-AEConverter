@@ -467,7 +467,7 @@ var Converter = (function () {
         var styles = {};
         var contents = parent.property('Contents');
         var numProperties = contents.numProperties;
-        for (var index = 0; index < numProperties; index += 1) {
+        for (var index = numProperties - 1; index >= 0; index -= 1) {
             var sublayer = contents.property(index + 1);
             if (!sublayer.enabled) {
                 continue;

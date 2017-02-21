@@ -481,7 +481,7 @@ class Converter {
         let styles: any = {}
         let contents = parent.property('Contents');
         let numProperties: number = contents.numProperties;
-        for (let index = 0; index < numProperties; index += 1) {
+        for (let index = numProperties - 1; index >= 0; index -= 1) {
             let sublayer: AE.AVLayer = contents.property(index + 1)
             if (!sublayer.enabled) {
                 continue;
