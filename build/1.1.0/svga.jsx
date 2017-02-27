@@ -972,7 +972,7 @@ var Converter = (function () {
                         alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                         layout: this.requestLayout(element.width, element.height),
                         matrix: this.requestMatrix(element.transform, element.width, element.height, element),
-                        mask: [this.requestMask(element)],
+                        mask: this.requestMask(element),
                         shapes: [],
                     }, element.width, element.height, startTime), element.startTime, nextParents);
                 }
@@ -981,7 +981,7 @@ var Converter = (function () {
                         alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                         layout: this.requestLayout(element.width, element.height),
                         matrix: this.requestMatrix(element.transform, element.width, element.height, element),
-                        mask: [this.requestMask(element)],
+                        mask: this.requestMask(element),
                         shapes: [],
                     }, element.startTime, nextParents);
                 }
@@ -1130,39 +1130,44 @@ var Converter = (function () {
                 var values = [];
                 var step = 1.0 / this.proj.frameRate;
                 for (var cTime = 0.0; cTime < step * this.proj.frameCount; cTime += step) {
-                    var vertices = maskElement.property('maskShape').valueAtTime(cTime, true).vertices;
-                    var solidPath = '';
-                    var drawPath = '';
-                    var finalPath = '';
-                    if (inverted) {
-                        solidPath = 'M0,0 ';
-                        solidPath += ' h' + layer.width;
-                        solidPath += ' v' + layer.height;
-                        solidPath += ' h-' + layer.width;
-                        solidPath += ' v-' + layer.height + ' ';
-                    }
-                    var lastPoint = undefined;
-                    for (var index = 0; index < vertices.length; index++) {
-                        var currentPoint = vertices[index];
-                        if (lastPoint === undefined) {
-                            drawPath += " M" + currentPoint[0].toFixed(3) + "," + currentPoint[1].toFixed(3);
-                            lastPoint = currentPoint;
+                    var path = maskElement.property('maskShape').valueAtTime(cTime, true);
+                    var inTangents = path.inTangents;
+                    var outTangents = path.outTangents;
+                    var vertices = path.vertices;
+                    var d = "";
+                    for (var index = 0; index <= vertices.length; index++) {
+                        var vertex = vertices[index];
+                        var it = inTangents[index];
+                        var ot = outTangents[index];
+                        if (index == 0) {
+                            d += "M" + vertex[0].toFixed(3) + " " + vertex[1].toFixed(3) + " ";
+                        }
+                        else if (index == vertices.length) {
+                            if (!path.closed) {
+                                continue;
+                            }
+                            d += "C" + (vertices[index - 1][0] + outTangents[index - 1][0]).toFixed(3) +
+                                " " + (vertices[index - 1][1] + outTangents[index - 1][1]).toFixed(3) +
+                                " " + (vertices[0][0] + inTangents[0][0]).toFixed(3) +
+                                " " + (vertices[0][1] + inTangents[0][1]).toFixed(3) +
+                                " " + (vertices[0][0]).toFixed(3) +
+                                " " + (vertices[0][1]).toFixed(3) +
+                                " ";
                         }
                         else {
-                            drawPath += " C" + lastPoint[0].toFixed(3) + "," + lastPoint[1].toFixed(3) + " " + currentPoint[0].toFixed(3) + "," + currentPoint[1].toFixed(3) + " " + currentPoint[0].toFixed(3) + "," + currentPoint[1].toFixed(3);
-                            lastPoint = currentPoint;
+                            d += "C" + (vertices[index - 1][0] + outTangents[index - 1][0]).toFixed(3) +
+                                " " + (vertices[index - 1][1] + outTangents[index - 1][1]).toFixed(3) +
+                                " " + (vertex[0] + inTangents[index][0]).toFixed(3) +
+                                " " + (vertex[1] + inTangents[index][1]).toFixed(3) +
+                                " " + (vertex[0]).toFixed(3) +
+                                " " + (vertex[1]).toFixed(3) +
+                                " ";
                         }
                     }
-                    if (closed_1) {
-                        drawPath += " C" + lastPoint[0].toFixed(3) + "," + lastPoint[1].toFixed(3) + " " + vertices[0][0].toFixed(3) + "," + vertices[0][1].toFixed(3) + " " + vertices[0][0].toFixed(3) + "," + vertices[0][1].toFixed(3);
+                    if (path.closed) {
+                        d += "Z";
                     }
-                    if (inverted) {
-                        finalPath = solidPath + drawPath;
-                    }
-                    else {
-                        finalPath = drawPath;
-                    }
-                    masks.push(finalPath);
+                    masks.push(d);
                 }
                 return masks;
             }
