@@ -158,6 +158,7 @@ class Converter {
                         layout: this.requestLayout(element.width, element.height),
                         matrix: this.requestMatrix(element.transform, element.width, element.height, element),
                         mask: [this.requestMask(element)],
+                        shapes: [],
                     }, element.width, element.height, startTime), element.startTime, nextParents);
                 }
                 else {
@@ -166,6 +167,7 @@ class Converter {
                         layout: this.requestLayout(element.width, element.height),
                         matrix: this.requestMatrix(element.transform, element.width, element.height, element),
                         mask: [this.requestMask(element)],
+                        shapes: [],
                     }, element.startTime, nextParents);
                 }
             }
