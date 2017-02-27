@@ -219,14 +219,18 @@ var Converter = (function () {
             if (aIndex < 0) {
                 continue;
             }
-            c.shapes[aIndex] = b.shapes[bIndex];
+            if (c.shapes != undefined && b.shapes != undefined) {
+                c.shapes[aIndex] = b.shapes[bIndex];
+            }
         }
         for (var index = 0; index < startIndex; index++) {
             delete c.alpha[index];
             delete c.layout[index];
             delete c.matrix[index];
             delete c.mask[index];
-            delete c.shapes[index];
+            if (c.shapes != undefined) {
+                delete c.shapes[index];
+            }
         }
         return c;
     };
