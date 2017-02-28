@@ -903,7 +903,7 @@ var Converter = (function () {
                             alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                             layout: this.requestLayout(element.width, element.height),
                             matrix: this.requestMatrix(element.transform, element.width, element.height, element),
-                            mask: this.requestMask(element),
+                            mask: this.requestMask(element, parents),
                             shapes: this.requestShapes(element),
                         }, element.width, element.height, startTime),
                     });
@@ -915,7 +915,7 @@ var Converter = (function () {
                             alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                             layout: this.requestLayout(element.width, element.height),
                             matrix: this.requestMatrix(element.transform, element.width, element.height, element),
-                            mask: this.requestMask(element),
+                            mask: this.requestMask(element, parents),
                             shapes: this.requestShapes(element),
                         }
                     });
@@ -941,7 +941,7 @@ var Converter = (function () {
                             alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                             layout: this.requestLayout(element.width, element.height),
                             matrix: this.requestMatrix(element.transform, element.width, element.height, element),
-                            mask: this.requestMask(element),
+                            mask: this.requestMask(element, parents),
                             shapes: [],
                         }, element.width, element.height, startTime),
                     });
@@ -953,7 +953,7 @@ var Converter = (function () {
                             alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                             layout: this.requestLayout(element.width, element.height),
                             matrix: this.requestMatrix(element.transform, element.width, element.height, element),
-                            mask: this.requestMask(element),
+                            mask: this.requestMask(element, parents),
                             shapes: [],
                         }
                     });
@@ -972,7 +972,7 @@ var Converter = (function () {
                         alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                         layout: this.requestLayout(element.width, element.height),
                         matrix: this.requestMatrix(element.transform, element.width, element.height, element),
-                        mask: this.requestMask(element),
+                        mask: [],
                         shapes: [],
                     }, element.width, element.height, startTime), element.startTime, nextParents);
                 }
@@ -981,7 +981,7 @@ var Converter = (function () {
                         alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                         layout: this.requestLayout(element.width, element.height),
                         matrix: this.requestMatrix(element.transform, element.width, element.height, element),
-                        mask: this.requestMask(element),
+                        mask: [],
                         shapes: [],
                     }, element.startTime, nextParents);
                 }
@@ -1118,61 +1118,89 @@ var Converter = (function () {
         }
         return value;
     };
-    Converter.prototype.requestMask = function (layer) {
-        if (layer.mask.numProperties > 0) {
-            for (var index = 0; index < layer.mask.numProperties; index++) {
-                var masks = [];
-                var maskElement = layer.mask(index + 1);
-                var maskShape = maskElement.property('maskShape').value;
-                var closed_1 = maskShape.closed;
-                var inverted = maskElement.inverted;
-                var mode = maskElement.maskMode;
-                var values = [];
-                var step = 1.0 / this.proj.frameRate;
-                for (var cTime = 0.0; cTime < step * this.proj.frameCount; cTime += step) {
-                    var path = maskElement.property('maskShape').valueAtTime(cTime, true);
-                    var inTangents = path.inTangents;
-                    var outTangents = path.outTangents;
-                    var vertices = path.vertices;
-                    var d = "";
-                    for (var index = 0; index <= vertices.length; index++) {
-                        var vertex = vertices[index];
-                        var it = inTangents[index];
-                        var ot = outTangents[index];
-                        if (index == 0) {
-                            d += "M" + vertex[0].toFixed(3) + " " + vertex[1].toFixed(3) + " ";
-                        }
-                        else if (index == vertices.length) {
-                            if (!path.closed) {
-                                continue;
-                            }
-                            d += "C" + (vertices[index - 1][0] + outTangents[index - 1][0]).toFixed(3) +
-                                " " + (vertices[index - 1][1] + outTangents[index - 1][1]).toFixed(3) +
-                                " " + (vertices[0][0] + inTangents[0][0]).toFixed(3) +
-                                " " + (vertices[0][1] + inTangents[0][1]).toFixed(3) +
-                                " " + (vertices[0][0]).toFixed(3) +
-                                " " + (vertices[0][1]).toFixed(3) +
-                                " ";
-                        }
-                        else {
-                            d += "C" + (vertices[index - 1][0] + outTangents[index - 1][0]).toFixed(3) +
-                                " " + (vertices[index - 1][1] + outTangents[index - 1][1]).toFixed(3) +
-                                " " + (vertex[0] + inTangents[index][0]).toFixed(3) +
-                                " " + (vertex[1] + inTangents[index][1]).toFixed(3) +
-                                " " + (vertex[0]).toFixed(3) +
-                                " " + (vertex[1]).toFixed(3) +
-                                " ";
-                        }
-                    }
-                    if (path.closed) {
-                        d += "Z";
-                    }
-                    masks.push(d);
+    Converter.prototype.requestMask = function (layer, parents) {
+        var hasMask = false;
+        var masks = [];
+        var step = 1.0 / this.proj.frameRate;
+        for (var cTime = 0.0; cTime < step * this.proj.frameCount; cTime += step) {
+            var d = "";
+            if (layer.mask.numProperties > 0) {
+                var maskElement = layer.mask(1);
+                d += this.requestPath(maskElement.property('maskShape').valueAtTime(cTime, true), { x: 0.0, y: 0.0 });
+                hasMask = true;
+            }
+            var offsetX = layer.transform["Position"].valueAtTime(cTime, true)[0] - layer.transform["Anchor Point"].valueAtTime(cTime, true)[0];
+            var offsetY = layer.transform["Position"].valueAtTime(cTime, true)[1] - layer.transform["Anchor Point"].valueAtTime(cTime, true)[1];
+            for (var index = parents.length - 1; index >= 0; index--) {
+                var element = parents[index];
+                if (element.mask.numProperties > 0) {
+                    var maskElement = element.mask(1);
+                    d += this.requestPath(maskElement.property('maskShape').valueAtTime(cTime, true), { x: -offsetX, y: -offsetY });
+                    offsetX += element.transform["Position"].valueAtTime(cTime, true)[0] - element.transform["Anchor Point"].valueAtTime(cTime, true)[0];
+                    offsetY += element.transform["Position"].valueAtTime(cTime, true)[1] - element.transform["Anchor Point"].valueAtTime(cTime, true)[1];
+                    hasMask = true;
                 }
-                return masks;
+            }
+            masks.push(d);
+        }
+        if (!hasMask) {
+            return [];
+        }
+        return masks;
+    };
+    Converter.prototype.requestPath = function (path, offset) {
+        var inTangents = path.inTangents;
+        var outTangents = path.outTangents;
+        var vertices = path.vertices;
+        for (var index = 0; index < vertices.length; index++) {
+            var element = vertices[index];
+            element[0] += offset.x;
+            element[1] += offset.y;
+            vertices[index] = element;
+        }
+        var d = "";
+        for (var index = 0; index <= vertices.length; index++) {
+            var vertex = vertices[index];
+            var it = inTangents[index];
+            var ot = outTangents[index];
+            if (index == 0) {
+                d += "M" + vertex[0].toFixed(3) + " " + vertex[1].toFixed(3) + " ";
+            }
+            else if (index == vertices.length) {
+                if (!path.closed) {
+                    continue;
+                }
+                d += "C" + (vertices[index - 1][0] + outTangents[index - 1][0]).toFixed(3) +
+                    " " + (vertices[index - 1][1] + outTangents[index - 1][1]).toFixed(3) +
+                    " " + (vertices[0][0] + inTangents[0][0]).toFixed(3) +
+                    " " + (vertices[0][1] + inTangents[0][1]).toFixed(3) +
+                    " " + (vertices[0][0]).toFixed(3) +
+                    " " + (vertices[0][1]).toFixed(3) +
+                    " ";
+            }
+            else {
+                d += "C" + (vertices[index - 1][0] + outTangents[index - 1][0]).toFixed(3) +
+                    " " + (vertices[index - 1][1] + outTangents[index - 1][1]).toFixed(3) +
+                    " " + (vertex[0] + inTangents[index][0]).toFixed(3) +
+                    " " + (vertex[1] + inTangents[index][1]).toFixed(3) +
+                    " " + (vertex[0]).toFixed(3) +
+                    " " + (vertex[1]).toFixed(3) +
+                    " ";
             }
         }
-        return [];
+        if (path.closed) {
+            d += "Z";
+        }
+        // if (inverted) {
+        //     let solidPath = '';
+        //     solidPath = 'M0 0';
+        //     solidPath += ' h' + layer.width;
+        //     solidPath += ' v' + layer.height;
+        //     solidPath += ' h-' + layer.width;
+        //     solidPath += ' v-' + layer.height + ' ';
+        //     d = solidPath + d;
+        // }
+        return d;
     };
     Converter.prototype.requestShapes = function (layer) {
         var values = [];

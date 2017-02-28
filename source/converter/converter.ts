@@ -88,7 +88,7 @@ class Converter {
                                 alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                                 layout: this.requestLayout(element.width, element.height),
                                 matrix: this.requestMatrix(element.transform, element.width, element.height, element),
-                                mask: this.requestMask(element),
+                                mask: this.requestMask(element, parents),
                                 shapes: this.requestShapes(element),
                         }, element.width, element.height, startTime),
                     });
@@ -100,7 +100,7 @@ class Converter {
                                 alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                                 layout: this.requestLayout(element.width, element.height),
                                 matrix: this.requestMatrix(element.transform, element.width, element.height, element),
-                                mask: this.requestMask(element),
+                                mask: this.requestMask(element, parents),
                                 shapes: this.requestShapes(element),
                         }
                     });
@@ -126,7 +126,7 @@ class Converter {
                             alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                             layout: this.requestLayout(element.width, element.height),
                             matrix: this.requestMatrix(element.transform, element.width, element.height, element),
-                            mask: this.requestMask(element),
+                            mask: this.requestMask(element, parents),
                             shapes: [],
                         }, element.width, element.height, startTime),
                     });
@@ -138,7 +138,7 @@ class Converter {
                             alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                             layout: this.requestLayout(element.width, element.height),
                             matrix: this.requestMatrix(element.transform, element.width, element.height, element),
-                            mask: this.requestMask(element),
+                            mask: this.requestMask(element, parents),
                             shapes: [],
                         }
                     });
@@ -157,7 +157,7 @@ class Converter {
                         alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                         layout: this.requestLayout(element.width, element.height),
                         matrix: this.requestMatrix(element.transform, element.width, element.height, element),
-                        mask: this.requestMask(element),
+                        mask: [],
                         shapes: [],
                     }, element.width, element.height, startTime), element.startTime, nextParents);
                 }
@@ -166,7 +166,7 @@ class Converter {
                         alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
                         layout: this.requestLayout(element.width, element.height),
                         matrix: this.requestMatrix(element.transform, element.width, element.height, element),
-                        mask: this.requestMask(element),
+                        mask: [],
                         shapes: [],
                     }, element.startTime, nextParents);
                 }
@@ -308,61 +308,90 @@ class Converter {
         return value;
     }
 
-    requestMask(layer: AE.AVLayer): string[] {
-        if (layer.mask.numProperties > 0) {
-            for (var index = 0; index < layer.mask.numProperties; index++) {
-                let masks: string[] = []
-                let maskElement: AE.MaskElement = (layer.mask as any)(index + 1);
-                let maskShape = maskElement.property('maskShape').value;
-                let closed = maskShape.closed;
-                let inverted = maskElement.inverted;
-                let mode = maskElement.maskMode;
-                let values: any[] = [];
-                let step = 1.0 / this.proj.frameRate;
-                for (var cTime = 0.0; cTime < step * this.proj.frameCount; cTime += step) {
-                    let path = maskElement.property('maskShape').valueAtTime(cTime, true)
-                    let inTangents = path.inTangents as number[][]
-                    let outTangents = path.outTangents as number[][]
-                    let vertices = path.vertices as number[][]
-                    var d = ""
-                    for (var index = 0; index <= vertices.length; index++) {
-                        var vertex: number[] = vertices[index];
-                        var it = inTangents[index];
-                        var ot = outTangents[index];
-                        if (index == 0) {
-                            d += "M" + vertex[0].toFixed(3) + " " + vertex[1].toFixed(3) + " ";
-                        }
-                        else if (index == vertices.length) {
-                            if (!path.closed) {
-                                continue;
-                            }
-                            d += "C" + (vertices[index - 1][0] + outTangents[index - 1][0]).toFixed(3) +
-                                    " " + (vertices[index - 1][1] + outTangents[index - 1][1]).toFixed(3) + 
-                                    " " + (vertices[0][0] + inTangents[0][0]).toFixed(3) + 
-                                    " " + (vertices[0][1] + inTangents[0][1]).toFixed(3) + 
-                                    " " + (vertices[0][0]).toFixed(3) + 
-                                    " " + (vertices[0][1]).toFixed(3) + 
-                                    " ";
-                        }
-                        else {
-                            d += "C" + (vertices[index - 1][0] + outTangents[index - 1][0]).toFixed(3) + 
-                                    " " + (vertices[index - 1][1] + outTangents[index - 1][1]).toFixed(3) + 
-                                    " " + (vertex[0] + inTangents[index][0]).toFixed(3) + 
-                                    " " + (vertex[1] + inTangents[index][1]).toFixed(3) + 
-                                    " " + (vertex[0]).toFixed(3) + 
-                                    " " + (vertex[1]).toFixed(3) + 
-                                    " ";
-                        }
-                    }
-                    if (path.closed) {
-                        d += "Z";
-                    }
-                    masks.push(d);
+    requestMask(layer: AE.AVLayer, parents: AE.AVLayer[]): string[] {
+        let hasMask = false
+        let masks: string[] = []
+        let step = 1.0 / this.proj.frameRate;
+        for (var cTime = 0.0; cTime < step * this.proj.frameCount; cTime += step) {
+            let d = ""
+            if (layer.mask.numProperties > 0) {
+                let maskElement: AE.MaskElement = (layer.mask as any)(1);
+                d += this.requestPath(maskElement.property('maskShape').valueAtTime(cTime, true), {x: 0.0, y: 0.0});
+                hasMask = true
+            }
+            let offsetX = layer.transform["Position"].valueAtTime(cTime, true)[0] - layer.transform["Anchor Point"].valueAtTime(cTime, true)[0];
+            let offsetY = layer.transform["Position"].valueAtTime(cTime, true)[1] - layer.transform["Anchor Point"].valueAtTime(cTime, true)[1];
+            for (let index = parents.length - 1; index >= 0; index--) {
+                let element = parents[index];
+                if (element.mask.numProperties > 0) {
+                    let maskElement: AE.MaskElement = (element.mask as any)(1);
+                    d += this.requestPath(maskElement.property('maskShape').valueAtTime(cTime, true), {x: -offsetX, y: -offsetY});
+                    offsetX += element.transform["Position"].valueAtTime(cTime, true)[0] - element.transform["Anchor Point"].valueAtTime(cTime, true)[0];
+                    offsetY += element.transform["Position"].valueAtTime(cTime, true)[1] - element.transform["Anchor Point"].valueAtTime(cTime, true)[1];
+                    hasMask = true
                 }
-                return masks;
+            }
+            masks.push(d);
+        }
+        if (!hasMask) {
+            return [];
+        }
+        return masks;
+    }
+
+    requestPath(path: any, offset: {x: number, y: number}): string {
+        let inTangents = path.inTangents as number[][]
+        let outTangents = path.outTangents as number[][]
+        let vertices = path.vertices as number[][]
+        for (let index = 0; index < vertices.length; index++) {
+            let element = vertices[index];
+            element[0] += offset.x
+            element[1] += offset.y
+            vertices[index] = element
+        }
+        let d = ""
+        for (let index = 0; index <= vertices.length; index++) {
+            let vertex: number[] = vertices[index];
+            let it = inTangents[index];
+            let ot = outTangents[index];
+            if (index == 0) {
+                d += "M" + vertex[0].toFixed(3) + " " + vertex[1].toFixed(3) + " ";
+            }
+            else if (index == vertices.length) {
+                if (!path.closed) {
+                    continue;
+                }
+                d += "C" + (vertices[index - 1][0] + outTangents[index - 1][0]).toFixed(3) +
+                        " " + (vertices[index - 1][1] + outTangents[index - 1][1]).toFixed(3) + 
+                        " " + (vertices[0][0] + inTangents[0][0]).toFixed(3) + 
+                        " " + (vertices[0][1] + inTangents[0][1]).toFixed(3) + 
+                        " " + (vertices[0][0]).toFixed(3) + 
+                        " " + (vertices[0][1]).toFixed(3) + 
+                        " ";
+            }
+            else {
+                d += "C" + (vertices[index - 1][0] + outTangents[index - 1][0]).toFixed(3) + 
+                        " " + (vertices[index - 1][1] + outTangents[index - 1][1]).toFixed(3) + 
+                        " " + (vertex[0] + inTangents[index][0]).toFixed(3) + 
+                        " " + (vertex[1] + inTangents[index][1]).toFixed(3) + 
+                        " " + (vertex[0]).toFixed(3) + 
+                        " " + (vertex[1]).toFixed(3) + 
+                        " ";
             }
         }
-        return [];
+        if (path.closed) {
+            d += "Z";
+        }
+        // if (inverted) {
+        //     let solidPath = '';
+        //     solidPath = 'M0 0';
+        //     solidPath += ' h' + layer.width;
+        //     solidPath += ' v' + layer.height;
+        //     solidPath += ' h-' + layer.width;
+        //     solidPath += ' v-' + layer.height + ' ';
+        //     d = solidPath + d;
+        // }
+        return d
     }
 
     requestShapes(layer: AE.AVLayer): SVGA.Shape2D[][] {
