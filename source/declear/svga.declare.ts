@@ -12,6 +12,7 @@ declare let Matrix: any;
 declare let Folder: any;
 declare let MaskMode: any;
 declare let RQItemStatus: any;
+declare let Bezier: any;
 
 namespace SVGA {
 

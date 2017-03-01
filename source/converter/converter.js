@@ -327,10 +327,104 @@ var Converter = (function () {
         }
         return masks;
     };
-    Converter.prototype.requestPath = function (path, offset) {
+    Converter.prototype.trimmedPath = function (path, reverse, trim) {
+        if (reverse === void 0) { reverse = false; }
         var inTangents = path.inTangents;
         var outTangents = path.outTangents;
         var vertices = path.vertices;
+        if (!reverse) {
+            inTangents = inTangents.reverse();
+            outTangents = outTangents.reverse();
+            vertices = vertices.reverse();
+        }
+        var length = 0.0;
+        for (var index = 0; index <= vertices.length; index++) {
+            var vertex = vertices[index];
+            var it = inTangents[index];
+            var ot = outTangents[index];
+            if (index == 0) { }
+            else if (index == vertices.length) {
+                if (!path.closed) {
+                    continue;
+                }
+                var curve = new Bezier(vertices[0][0], vertices[0][1], vertices[index - 1][0] + outTangents[index - 1][0], vertices[index - 1][1] + outTangents[index - 1][1], vertices[0][0] + inTangents[0][0], vertices[0][1] + inTangents[0][1]);
+                length += curve.length();
+            }
+            else {
+                var curve = new Bezier(vertex[0], vertex[1], vertices[index - 1][0] + outTangents[index - 1][0], vertices[index - 1][1] + outTangents[index - 1][1], vertex[0] + inTangents[index][0], vertex[1] + inTangents[index][1]);
+                length += curve.length();
+            }
+        }
+        var curvePoints = [];
+        var currentProgress = 0.0;
+        for (var index = 0; index <= vertices.length; index++) {
+            var vertex = vertices[index];
+            var it = inTangents[index];
+            var ot = outTangents[index];
+            if (index == 0) { }
+            else if (index == vertices.length) {
+                if (!path.closed) {
+                    continue;
+                }
+                var curve = new Bezier(vertices[0][0], vertices[0][1], vertices[index - 1][0] + outTangents[index - 1][0], vertices[index - 1][1] + outTangents[index - 1][1], vertices[0][0] + inTangents[0][0], vertices[0][1] + inTangents[0][1]);
+                var segmentProgress = curve.length() / length;
+                if (currentProgress >= trim.start && currentProgress + segmentProgress <= trim.end) {
+                    curvePoints.push([vertex[0], vertex[1], vertices[index - 1][0] + outTangents[index - 1][0], vertices[index - 1][1] + outTangents[index - 1][1], vertex[0] + inTangents[index][0], vertex[1] + inTangents[index][1]]);
+                }
+                else {
+                    var trimmedLength = (trim.end > (currentProgress + segmentProgress) ? (currentProgress + segmentProgress) : trim.end) * length - (trim.start > currentProgress ? trim.start : currentProgress) * length;
+                    var trimmedLeftLength = Math.max(0.0, (trim.start - currentProgress) * length);
+                    var trimmedRightLength = Math.max(0.0, ((currentProgress + segmentProgress) - trim.end) * length);
+                    var t = {
+                        s: trimmedLeftLength / curve.length(),
+                        e: 1.0 - trimmedRightLength / curve.length()
+                    };
+                    var nc = curve.split(t.s, t.e);
+                    curvePoints.push([nc.points[0].x, nc.points[0].y, nc.points[1].x, nc.points[1].y, nc.points[2].x, nc.points[2].y]);
+                }
+                currentProgress += segmentProgress;
+            }
+            else {
+                var curve = new Bezier(vertex[0], vertex[1], vertices[index - 1][0] + outTangents[index - 1][0], vertices[index - 1][1] + outTangents[index - 1][1], vertex[0] + inTangents[index][0], vertex[1] + inTangents[index][1]);
+                var segmentProgress = curve.length() / length;
+                if (currentProgress >= trim.start && currentProgress + segmentProgress <= trim.end) {
+                    curvePoints.push([vertex[0], vertex[1], vertices[index - 1][0] + outTangents[index - 1][0], vertices[index - 1][1] + outTangents[index - 1][1], vertex[0] + inTangents[index][0], vertex[1] + inTangents[index][1]]);
+                }
+                else {
+                    var trimmedLeftLength = Math.max(0.0, (trim.start - currentProgress) * length);
+                    var trimmedRightLength = Math.max(0.0, ((currentProgress + segmentProgress) - trim.end) * length);
+                    var t = {
+                        s: trimmedLeftLength / curve.length(),
+                        e: 1.0 - trimmedRightLength / curve.length()
+                    };
+                    var nc = curve.split(t.s, t.e);
+                    curvePoints.push([nc.points[0].x, nc.points[0].y, nc.points[1].x, nc.points[1].y, nc.points[2].x, nc.points[2].y]);
+                }
+                currentProgress += segmentProgress;
+            }
+        }
+        var d = "";
+        for (var index = 0; index < curvePoints.length; index++) {
+            var element = curvePoints[index];
+            if (index == 0) {
+                d += "M " + element[4] + " " + element[5];
+            }
+            d += " C " + element[2] + " " + element[3] + " " + element[4] + " " + element[5] + " " + element[0] + " " + element[1];
+        }
+        if (path.closed) {
+            d += " Z";
+        }
+        return d;
+    };
+    Converter.prototype.requestPath = function (path, offset, reverse, trim) {
+        if (reverse === void 0) { reverse = false; }
+        if (trim === void 0) { trim = { start: 0.0, end: 1.0 }; }
+        var inTangents = path.inTangents;
+        var outTangents = path.outTangents;
+        var vertices = path.vertices;
+        if (trim.start != 0.0 || trim.end != 1.0) {
+            return this.trimmedPath(path, reverse, trim);
+        }
         for (var index = 0; index < vertices.length; index++) {
             var element = vertices[index];
             element[0] += offset.x;
@@ -398,47 +492,12 @@ var Converter = (function () {
         if (layer.matchName == "ADBE Vector Shape - Group") {
             var pathContents = layer.property('Path');
             var path = pathContents.valueAtTime(cTime, true);
-            var inTangents = path.inTangents;
-            var outTangents = path.outTangents;
-            var vertices = path.vertices;
-            if (layer.property("Shape Direction").valueAtTime(cTime, true) === 3) {
-                inTangents.reverse();
-                outTangents.reverse();
-                vertices.reverse();
+            var style = this.requestShapeStyles(layer, parent, cTime);
+            var trim = { start: 0.0, end: 1.0 };
+            if (style.trim != null) {
+                trim = style.trim;
             }
-            var d = "";
-            for (var index = 0; index <= vertices.length; index++) {
-                var vertex = vertices[index];
-                var it = inTangents[index];
-                var ot = outTangents[index];
-                if (index == 0) {
-                    d += "M " + vertex[0].toFixed(3) + " " + vertex[1].toFixed(3) + " ";
-                }
-                else if (index == vertices.length) {
-                    if (!path.closed) {
-                        continue;
-                    }
-                    d += "C " + (vertices[index - 1][0] + outTangents[index - 1][0]).toFixed(3) +
-                        " " + (vertices[index - 1][1] + outTangents[index - 1][1]).toFixed(3) +
-                        " " + (vertices[0][0] + inTangents[0][0]).toFixed(3) +
-                        " " + (vertices[0][1] + inTangents[0][1]).toFixed(3) +
-                        " " + (vertices[0][0]).toFixed(3) +
-                        " " + (vertices[0][1]).toFixed(3) +
-                        " ";
-                }
-                else {
-                    d += "C " + (vertices[index - 1][0] + outTangents[index - 1][0]).toFixed(3) +
-                        " " + (vertices[index - 1][1] + outTangents[index - 1][1]).toFixed(3) +
-                        " " + (vertex[0] + inTangents[index][0]).toFixed(3) +
-                        " " + (vertex[1] + inTangents[index][1]).toFixed(3) +
-                        " " + (vertex[0]).toFixed(3) +
-                        " " + (vertex[1]).toFixed(3) +
-                        " ";
-                }
-            }
-            if (path.closed) {
-                d += "Z";
-            }
+            var d = this.requestPath(path, { x: 0.0, y: 0.0 }, layer.property("Shape Direction").valueAtTime(cTime, true) === 3, trim);
             var shape = {
                 type: "shape",
                 args: {
@@ -447,6 +506,7 @@ var Converter = (function () {
                 styles: this.requestShapeStyles(layer, parent, cTime),
                 transform: this.requestShapeTransform(parent, cTime),
             };
+            delete shape.styles["trim"];
             shapes.unshift(shape);
         }
         else if (layer.matchName == "ADBE Vector Shape - Ellipse") {
@@ -490,8 +550,8 @@ var Converter = (function () {
             var contents = layer.property('Contents');
             if (contents != null && contents != undefined) {
                 var numProperties = contents.numProperties;
-                for (var index_1 = 0; index_1 < numProperties; index_1 += 1) {
-                    var sublayer = contents.property(index_1 + 1);
+                for (var index = 0; index < numProperties; index += 1) {
+                    var sublayer = contents.property(index + 1);
                     var results = this.requestShapesAtTime(sublayer, cTime, layer);
                     for (var i = 0; i < results.length; i++) {
                         var element = results[i];

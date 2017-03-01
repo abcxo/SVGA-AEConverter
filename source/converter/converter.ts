@@ -339,10 +339,99 @@ class Converter {
         return masks;
     }
 
-    requestPath(path: any, offset: {x: number, y: number}): string {
+    trimmedPath(path: any, reverse: Boolean = false, trim: {start: number, end: number}): string {
         let inTangents = path.inTangents as number[][]
         let outTangents = path.outTangents as number[][]
         let vertices = path.vertices as number[][]
+        if (!reverse) {
+            inTangents = inTangents.reverse()
+            outTangents = outTangents.reverse()
+            vertices = vertices.reverse()
+        }
+        let length = 0.0
+        for (let index = 0; index <= vertices.length; index++) {
+            let vertex: number[] = vertices[index];
+            let it = inTangents[index];
+            let ot = outTangents[index];
+            if (index == 0) { }
+            else if (index == vertices.length) {
+                if (!path.closed) {
+                    continue;
+                }
+                let curve = new Bezier(vertices[0][0], vertices[0][1], vertices[index - 1][0] + outTangents[index - 1][0], vertices[index - 1][1] + outTangents[index - 1][1], vertices[0][0] + inTangents[0][0], vertices[0][1] + inTangents[0][1])
+                length += curve.length()
+            }
+            else {
+                let curve = new Bezier(vertex[0], vertex[1], vertices[index - 1][0] + outTangents[index - 1][0], vertices[index - 1][1] + outTangents[index - 1][1], vertex[0] + inTangents[index][0], vertex[1] + inTangents[index][1])
+                length += curve.length()
+            }
+        }
+        let curvePoints: number[][] = []
+        let currentProgress = 0.0
+        for (let index = 0; index <= vertices.length; index++) {
+            let vertex: number[] = vertices[index];
+            let it = inTangents[index];
+            let ot = outTangents[index];
+            if (index == 0) { }
+            else if (index == vertices.length) {
+                if (!path.closed) {
+                    continue;
+                }
+                let curve = new Bezier(vertices[0][0], vertices[0][1], vertices[index - 1][0] + outTangents[index - 1][0], vertices[index - 1][1] + outTangents[index - 1][1], vertices[0][0] + inTangents[0][0], vertices[0][1] + inTangents[0][1])
+                let segmentProgress = curve.length() / length
+                if (currentProgress >= trim.start && currentProgress + segmentProgress <= trim.end) {
+                    curvePoints.push([vertex[0], vertex[1], vertices[index - 1][0] + outTangents[index - 1][0], vertices[index - 1][1] + outTangents[index - 1][1], vertex[0] + inTangents[index][0], vertex[1] + inTangents[index][1]])
+                }
+                else {
+                    let trimmedLength = (trim.end > (currentProgress + segmentProgress) ? (currentProgress + segmentProgress) : trim.end) * length - (trim.start > currentProgress ? trim.start : currentProgress) * length
+                    let trimmedLeftLength = Math.max(0.0, (trim.start - currentProgress) * length)
+                    let trimmedRightLength = Math.max(0.0, ((currentProgress + segmentProgress) - trim.end) * length)
+                    let t = {
+                        s: trimmedLeftLength / curve.length(),
+                        e: 1.0 - trimmedRightLength / curve.length()
+                    }
+                    let nc = curve.split(t.s, t.e)
+                    curvePoints.push([nc.points[0].x, nc.points[0].y, nc.points[1].x, nc.points[1].y, nc.points[2].x, nc.points[2].y])
+                }
+                currentProgress += segmentProgress
+            }
+            else {
+                let curve = new Bezier(vertex[0], vertex[1], vertices[index - 1][0] + outTangents[index - 1][0], vertices[index - 1][1] + outTangents[index - 1][1], vertex[0] + inTangents[index][0], vertex[1] + inTangents[index][1])
+                let segmentProgress = curve.length() / length
+                if (currentProgress >= trim.start && currentProgress + segmentProgress <= trim.end) {
+                    curvePoints.push([vertex[0], vertex[1], vertices[index - 1][0] + outTangents[index - 1][0], vertices[index - 1][1] + outTangents[index - 1][1], vertex[0] + inTangents[index][0], vertex[1] + inTangents[index][1]])
+                }
+                else {
+                    let trimmedLeftLength = Math.max(0.0, (trim.start - currentProgress) * length)
+                    let trimmedRightLength = Math.max(0.0, ((currentProgress + segmentProgress) - trim.end) * length)
+                    let t = {
+                        s: trimmedLeftLength / curve.length(),
+                        e: 1.0 - trimmedRightLength / curve.length()
+                    }
+                    let nc = curve.split(t.s, t.e)
+                    curvePoints.push([nc.points[0].x, nc.points[0].y, nc.points[1].x, nc.points[1].y, nc.points[2].x, nc.points[2].y])
+                }
+                currentProgress += segmentProgress
+            }
+        }
+        let d = "";
+        for (let index = 0; index < curvePoints.length; index++) {
+            var element = curvePoints[index];
+            if (index == 0) {
+                d += "M " + (element[4]).toFixed(3) + " " + (element[5]).toFixed(3);
+            }
+            d += " C " + (element[2]).toFixed(3) + " " + (element[3]).toFixed(3) + " " + (element[4]).toFixed(3) + " " + (element[5]).toFixed(3) + " " + (element[0]).toFixed(3) + " " + (element[1]).toFixed(3);
+        }
+        return d
+    }
+
+    requestPath(path: any, offset: {x: number, y: number}, reverse: Boolean = false, trim: {start: number, end: number} = {start: 0.0, end: 1.0}): string {
+        let inTangents = path.inTangents as number[][]
+        let outTangents = path.outTangents as number[][]
+        let vertices = path.vertices as number[][]
+        if (trim.start > 0.0 || trim.end < 1.0) {
+            return this.trimmedPath(path, reverse, trim)
+        }
         for (let index = 0; index < vertices.length; index++) {
             let element = vertices[index];
             element[0] += offset.x
@@ -412,47 +501,12 @@ class Converter {
         if (layer.matchName == "ADBE Vector Shape - Group") {
             let pathContents = layer.property('Path');
             let path = pathContents.valueAtTime(cTime, true);
-            let inTangents = path.inTangents as number[][]
-            let outTangents = path.outTangents as number[][]
-            let vertices = path.vertices as number[][]
-            if (layer.property("Shape Direction").valueAtTime(cTime, true) === 3) {
-                inTangents.reverse()
-                outTangents.reverse()
-                vertices.reverse()
+            let style = this.requestShapeStyles(layer, parent, cTime)
+            let trim = {start: 0.0, end: 1.0}
+            if (style.trim != null) {
+                trim = style.trim
             }
-            var d = ""
-            for (var index = 0; index <= vertices.length; index++) {
-                var vertex: number[] = vertices[index];
-                var it = inTangents[index];
-                var ot = outTangents[index];
-                if (index == 0) {
-                    d += "M " + vertex[0].toFixed(3) + " " + vertex[1].toFixed(3) + " ";
-                }
-                else if (index == vertices.length) {
-                    if (!path.closed) {
-                        continue;
-                    }
-                    d += "C " + (vertices[index - 1][0] + outTangents[index - 1][0]).toFixed(3) +
-                            " " + (vertices[index - 1][1] + outTangents[index - 1][1]).toFixed(3) + 
-                            " " + (vertices[0][0] + inTangents[0][0]).toFixed(3) + 
-                            " " + (vertices[0][1] + inTangents[0][1]).toFixed(3) + 
-                            " " + (vertices[0][0]).toFixed(3) + 
-                            " " + (vertices[0][1]).toFixed(3) + 
-                            " ";
-                }
-                else {
-                    d += "C " + (vertices[index - 1][0] + outTangents[index - 1][0]).toFixed(3) + 
-                            " " + (vertices[index - 1][1] + outTangents[index - 1][1]).toFixed(3) + 
-                            " " + (vertex[0] + inTangents[index][0]).toFixed(3) + 
-                            " " + (vertex[1] + inTangents[index][1]).toFixed(3) + 
-                            " " + (vertex[0]).toFixed(3) + 
-                            " " + (vertex[1]).toFixed(3) + 
-                            " ";
-                }
-            }
-            if (path.closed) {
-                d += "Z";
-            }
+            let d = this.requestPath(path, {x: 0.0, y: 0.0}, layer.property("Shape Direction").valueAtTime(cTime, true) === 3, trim)
             let shape: SVGA.Shape2D = {
                 type: "shape",
                 args: {
@@ -461,6 +515,7 @@ class Converter {
                 styles: this.requestShapeStyles(layer, parent, cTime),
                 transform: this.requestShapeTransform(parent, cTime),
             }
+            delete shape.styles["trim"];
             shapes.unshift(shape);
         }
         else if (layer.matchName == "ADBE Vector Shape - Ellipse") {
