@@ -13,6 +13,7 @@ class Converter {
     proj: SVGA.Project = undefined;
     res: SVGA.Resource[] = [];
     layers: SVGA.Layer[] = [];
+    trimmingCache: any = {};
 
     constructor(app: AE.App) {
         this.app = app;
@@ -343,10 +344,18 @@ class Converter {
         let inTangents = path.inTangents as number[][]
         let outTangents = path.outTangents as number[][]
         let vertices = path.vertices as number[][]
-        if (!reverse) {
+        if (reverse) {
             inTangents = inTangents.reverse()
             outTangents = outTangents.reverse()
             vertices = vertices.reverse()
+        }
+        let cacheKey = inTangents.map(function(item){ return item[0] + "," + item[1] }).join(",") + "_" + 
+                       outTangents.map(function(item){ return item[0] + "," + item[1] }).join(",") + "_" + 
+                       vertices.map(function(item){ return item[0] + "," + item[1] }).join(",") + "_" + 
+                       (reverse ? "true" : "false") + "_" + 
+                       trim.start + "," + trim.end;
+        if (this.trimmingCache[cacheKey] != undefined) {
+            return this.trimmingCache[cacheKey];
         }
         let length = 0.0
         for (let index = 0; index <= vertices.length; index++) {
@@ -358,11 +367,23 @@ class Converter {
                 if (!path.closed) {
                     continue;
                 }
-                let curve = new Bezier(vertices[0][0], vertices[0][1], vertices[index - 1][0] + outTangents[index - 1][0], vertices[index - 1][1] + outTangents[index - 1][1], vertices[0][0] + inTangents[0][0], vertices[0][1] + inTangents[0][1])
+                let curve = new Bezier(
+                    vertices[index - 1][0] + outTangents[index - 1][0], 
+                    vertices[index - 1][1] + outTangents[index - 1][1], 
+                    vertices[0][0] + inTangents[0][0], 
+                    vertices[0][1] + inTangents[0][1], 
+                    vertices[0][0], 
+                    vertices[0][1])
                 length += curve.length()
             }
             else {
-                let curve = new Bezier(vertex[0], vertex[1], vertices[index - 1][0] + outTangents[index - 1][0], vertices[index - 1][1] + outTangents[index - 1][1], vertex[0] + inTangents[index][0], vertex[1] + inTangents[index][1])
+                let curve = new Bezier(
+                    (vertices[index - 1][0] + outTangents[index - 1][0]),
+                    (vertices[index - 1][1] + outTangents[index - 1][1]),
+                    (vertex[0] + inTangents[index][0]),
+                    (vertex[1] + inTangents[index][1]),
+                    (vertex[0]),
+                    (vertex[1]));
                 length += curve.length()
             }
         }
@@ -377,7 +398,13 @@ class Converter {
                 if (!path.closed) {
                     continue;
                 }
-                let curve = new Bezier(vertices[0][0], vertices[0][1], vertices[index - 1][0] + outTangents[index - 1][0], vertices[index - 1][1] + outTangents[index - 1][1], vertices[0][0] + inTangents[0][0], vertices[0][1] + inTangents[0][1])
+                let curve = new Bezier(
+                    vertices[index - 1][0] + outTangents[index - 1][0], 
+                    vertices[index - 1][1] + outTangents[index - 1][1], 
+                    vertices[0][0] + inTangents[0][0], 
+                    vertices[0][1] + inTangents[0][1], 
+                    vertices[0][0], 
+                    vertices[0][1])
                 let segmentProgress = curve.length() / length
                 if (currentProgress >= trim.start && currentProgress + segmentProgress <= trim.end) {
                     curvePoints.push([vertex[0], vertex[1], vertices[index - 1][0] + outTangents[index - 1][0], vertices[index - 1][1] + outTangents[index - 1][1], vertex[0] + inTangents[index][0], vertex[1] + inTangents[index][1]])
@@ -396,17 +423,24 @@ class Converter {
                 currentProgress += segmentProgress
             }
             else {
-                let curve = new Bezier(vertex[0], vertex[1], vertices[index - 1][0] + outTangents[index - 1][0], vertices[index - 1][1] + outTangents[index - 1][1], vertex[0] + inTangents[index][0], vertex[1] + inTangents[index][1])
-                let segmentProgress = curve.length() / length
+                let curve = new Bezier(
+                    (vertices[index - 1][0] + outTangents[index - 1][0]),
+                    (vertices[index - 1][1] + outTangents[index - 1][1]),
+                    (vertex[0] + inTangents[index][0]),
+                    (vertex[1] + inTangents[index][1]),
+                    (vertex[0]),
+                    (vertex[1]));
+                let curveLength = curve.length()
+                let segmentProgress = curveLength / length
                 if (currentProgress >= trim.start && currentProgress + segmentProgress <= trim.end) {
-                    curvePoints.push([vertex[0], vertex[1], vertices[index - 1][0] + outTangents[index - 1][0], vertices[index - 1][1] + outTangents[index - 1][1], vertex[0] + inTangents[index][0], vertex[1] + inTangents[index][1]])
+                    curvePoints.push([vertices[index - 1][0] + outTangents[index - 1][0], vertices[index - 1][1] + outTangents[index - 1][1], vertex[0] + inTangents[index][0], vertex[1] + inTangents[index][1], vertex[0], vertex[1]])
                 }
                 else {
                     let trimmedLeftLength = Math.max(0.0, (trim.start - currentProgress) * length)
                     let trimmedRightLength = Math.max(0.0, ((currentProgress + segmentProgress) - trim.end) * length)
                     let t = {
-                        s: trimmedLeftLength / curve.length(),
-                        e: 1.0 - trimmedRightLength / curve.length()
+                        s: trimmedLeftLength / curveLength,
+                        e: 1.0 - trimmedRightLength / curveLength
                     }
                     let nc = curve.split(t.s, t.e)
                     curvePoints.push([nc.points[0].x, nc.points[0].y, nc.points[1].x, nc.points[1].y, nc.points[2].x, nc.points[2].y])
@@ -418,10 +452,12 @@ class Converter {
         for (let index = 0; index < curvePoints.length; index++) {
             var element = curvePoints[index];
             if (index == 0) {
-                d += "M " + (element[4]).toFixed(3) + " " + (element[5]).toFixed(3);
+                d += "M " + (element[0]) + " " + (element[1]);
             }
-            d += " C " + (element[2]).toFixed(3) + " " + (element[3]).toFixed(3) + " " + (element[4]).toFixed(3) + " " + (element[5]).toFixed(3) + " " + (element[0]).toFixed(3) + " " + (element[1]).toFixed(3);
+            d += " C " + (element[0]) + " " + (element[1]) + " " + (element[2]) + " " + (element[3]) + " " + (element[4]) + " " + (element[5]);
         }
+        d = d.replace(/([0-9]+\.[0-9][0-9][0-9])[0-9]+/ig, "$1")
+        this.trimmingCache[cacheKey] = d
         return d
     }
 
@@ -429,7 +465,10 @@ class Converter {
         let inTangents = path.inTangents as number[][]
         let outTangents = path.outTangents as number[][]
         let vertices = path.vertices as number[][]
-        if (trim.start > 0.0 || trim.end < 1.0) {
+        if (Math.abs(trim.end - trim.start) < 0.001 || trim.end < trim.start) {
+            return ""
+        }
+        else if (trim.start > 0.0 || trim.end < 1.0) {
             return this.trimmedPath(path, reverse, trim)
         }
         for (let index = 0; index < vertices.length; index++) {
@@ -444,42 +483,34 @@ class Converter {
             let it = inTangents[index];
             let ot = outTangents[index];
             if (index == 0) {
-                d += "M" + vertex[0].toFixed(3) + " " + vertex[1].toFixed(3) + " ";
+                d += "M" + vertex[0] + " " + vertex[1] + " ";
             }
             else if (index == vertices.length) {
                 if (!path.closed) {
                     continue;
                 }
-                d += "C" + (vertices[index - 1][0] + outTangents[index - 1][0]).toFixed(3) +
-                        " " + (vertices[index - 1][1] + outTangents[index - 1][1]).toFixed(3) + 
-                        " " + (vertices[0][0] + inTangents[0][0]).toFixed(3) + 
-                        " " + (vertices[0][1] + inTangents[0][1]).toFixed(3) + 
-                        " " + (vertices[0][0]).toFixed(3) + 
-                        " " + (vertices[0][1]).toFixed(3) + 
+                d += "C" + (vertices[index - 1][0] + outTangents[index - 1][0]) +
+                        " " + (vertices[index - 1][1] + outTangents[index - 1][1]) + 
+                        " " + (vertices[0][0] + inTangents[0][0]) + 
+                        " " + (vertices[0][1] + inTangents[0][1]) + 
+                        " " + (vertices[0][0]) + 
+                        " " + (vertices[0][1]) + 
                         " ";
             }
             else {
-                d += "C" + (vertices[index - 1][0] + outTangents[index - 1][0]).toFixed(3) + 
-                        " " + (vertices[index - 1][1] + outTangents[index - 1][1]).toFixed(3) + 
-                        " " + (vertex[0] + inTangents[index][0]).toFixed(3) + 
-                        " " + (vertex[1] + inTangents[index][1]).toFixed(3) + 
-                        " " + (vertex[0]).toFixed(3) + 
-                        " " + (vertex[1]).toFixed(3) + 
+                d += "C" + (vertices[index - 1][0] + outTangents[index - 1][0]) + 
+                        " " + (vertices[index - 1][1] + outTangents[index - 1][1]) + 
+                        " " + (vertex[0] + inTangents[index][0]) + 
+                        " " + (vertex[1] + inTangents[index][1]) + 
+                        " " + (vertex[0]) + 
+                        " " + (vertex[1]) + 
                         " ";
             }
         }
         if (path.closed) {
             d += "Z";
         }
-        // if (inverted) {
-        //     let solidPath = '';
-        //     solidPath = 'M0 0';
-        //     solidPath += ' h' + layer.width;
-        //     solidPath += ' v' + layer.height;
-        //     solidPath += ' h-' + layer.width;
-        //     solidPath += ' v-' + layer.height + ' ';
-        //     d = solidPath + d;
-        // }
+        d = d.replace(/([0-9]+\.[0-9][0-9][0-9])[0-9]+/ig, "$1")
         return d
     }
 

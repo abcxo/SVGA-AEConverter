@@ -12,6 +12,7 @@ var Converter = (function () {
         this.proj = undefined;
         this.res = [];
         this.layers = [];
+        this.trimmingCache = {};
         this.app = app;
         this.loadProj();
         this.loadRes(app.project.activeItem.layers, app.project.activeItem.layers.length);
@@ -332,10 +333,18 @@ var Converter = (function () {
         var inTangents = path.inTangents;
         var outTangents = path.outTangents;
         var vertices = path.vertices;
-        if (!reverse) {
+        if (reverse) {
             inTangents = inTangents.reverse();
             outTangents = outTangents.reverse();
             vertices = vertices.reverse();
+        }
+        var cacheKey = inTangents.map(function (item) { return item[0] + "," + item[1]; }).join(",") + "_" +
+            outTangents.map(function (item) { return item[0] + "," + item[1]; }).join(",") + "_" +
+            vertices.map(function (item) { return item[0] + "," + item[1]; }).join(",") + "_" +
+            (reverse ? "true" : "false") + "_" +
+            trim.start + "," + trim.end;
+        if (this.trimmingCache[cacheKey] != undefined) {
+            return this.trimmingCache[cacheKey];
         }
         var length = 0.0;
         for (var index = 0; index <= vertices.length; index++) {
@@ -347,11 +356,11 @@ var Converter = (function () {
                 if (!path.closed) {
                     continue;
                 }
-                var curve = new Bezier(vertices[0][0], vertices[0][1], vertices[index - 1][0] + outTangents[index - 1][0], vertices[index - 1][1] + outTangents[index - 1][1], vertices[0][0] + inTangents[0][0], vertices[0][1] + inTangents[0][1]);
+                var curve = new Bezier(vertices[index - 1][0] + outTangents[index - 1][0], vertices[index - 1][1] + outTangents[index - 1][1], vertices[0][0] + inTangents[0][0], vertices[0][1] + inTangents[0][1], vertices[0][0], vertices[0][1]);
                 length += curve.length();
             }
             else {
-                var curve = new Bezier(vertex[0], vertex[1], vertices[index - 1][0] + outTangents[index - 1][0], vertices[index - 1][1] + outTangents[index - 1][1], vertex[0] + inTangents[index][0], vertex[1] + inTangents[index][1]);
+                var curve = new Bezier((vertices[index - 1][0] + outTangents[index - 1][0]), (vertices[index - 1][1] + outTangents[index - 1][1]), (vertex[0] + inTangents[index][0]), (vertex[1] + inTangents[index][1]), (vertex[0]), (vertex[1]));
                 length += curve.length();
             }
         }
@@ -366,7 +375,7 @@ var Converter = (function () {
                 if (!path.closed) {
                     continue;
                 }
-                var curve = new Bezier(vertices[0][0], vertices[0][1], vertices[index - 1][0] + outTangents[index - 1][0], vertices[index - 1][1] + outTangents[index - 1][1], vertices[0][0] + inTangents[0][0], vertices[0][1] + inTangents[0][1]);
+                var curve = new Bezier(vertices[index - 1][0] + outTangents[index - 1][0], vertices[index - 1][1] + outTangents[index - 1][1], vertices[0][0] + inTangents[0][0], vertices[0][1] + inTangents[0][1], vertices[0][0], vertices[0][1]);
                 var segmentProgress = curve.length() / length;
                 if (currentProgress >= trim.start && currentProgress + segmentProgress <= trim.end) {
                     curvePoints.push([vertex[0], vertex[1], vertices[index - 1][0] + outTangents[index - 1][0], vertices[index - 1][1] + outTangents[index - 1][1], vertex[0] + inTangents[index][0], vertex[1] + inTangents[index][1]]);
@@ -385,17 +394,18 @@ var Converter = (function () {
                 currentProgress += segmentProgress;
             }
             else {
-                var curve = new Bezier(vertex[0], vertex[1], vertices[index - 1][0] + outTangents[index - 1][0], vertices[index - 1][1] + outTangents[index - 1][1], vertex[0] + inTangents[index][0], vertex[1] + inTangents[index][1]);
-                var segmentProgress = curve.length() / length;
+                var curve = new Bezier((vertices[index - 1][0] + outTangents[index - 1][0]), (vertices[index - 1][1] + outTangents[index - 1][1]), (vertex[0] + inTangents[index][0]), (vertex[1] + inTangents[index][1]), (vertex[0]), (vertex[1]));
+                var curveLength = curve.length();
+                var segmentProgress = curveLength / length;
                 if (currentProgress >= trim.start && currentProgress + segmentProgress <= trim.end) {
-                    curvePoints.push([vertex[0], vertex[1], vertices[index - 1][0] + outTangents[index - 1][0], vertices[index - 1][1] + outTangents[index - 1][1], vertex[0] + inTangents[index][0], vertex[1] + inTangents[index][1]]);
+                    curvePoints.push([vertices[index - 1][0] + outTangents[index - 1][0], vertices[index - 1][1] + outTangents[index - 1][1], vertex[0] + inTangents[index][0], vertex[1] + inTangents[index][1], vertex[0], vertex[1]]);
                 }
                 else {
                     var trimmedLeftLength = Math.max(0.0, (trim.start - currentProgress) * length);
                     var trimmedRightLength = Math.max(0.0, ((currentProgress + segmentProgress) - trim.end) * length);
                     var t = {
-                        s: trimmedLeftLength / curve.length(),
-                        e: 1.0 - trimmedRightLength / curve.length()
+                        s: trimmedLeftLength / curveLength,
+                        e: 1.0 - trimmedRightLength / curveLength
                     };
                     var nc = curve.split(t.s, t.e);
                     curvePoints.push([nc.points[0].x, nc.points[0].y, nc.points[1].x, nc.points[1].y, nc.points[2].x, nc.points[2].y]);
@@ -407,13 +417,12 @@ var Converter = (function () {
         for (var index = 0; index < curvePoints.length; index++) {
             var element = curvePoints[index];
             if (index == 0) {
-                d += "M " + element[4] + " " + element[5];
+                d += "M " + (element[0]) + " " + (element[1]);
             }
-            d += " C " + element[2] + " " + element[3] + " " + element[4] + " " + element[5] + " " + element[0] + " " + element[1];
+            d += " C " + (element[0]) + " " + (element[1]) + " " + (element[2]) + " " + (element[3]) + " " + (element[4]) + " " + (element[5]);
         }
-        if (path.closed) {
-            d += " Z";
-        }
+        d = d.replace(/([0-9]+\.[0-9][0-9][0-9])[0-9]+/ig, "$1");
+        this.trimmingCache[cacheKey] = d;
         return d;
     };
     Converter.prototype.requestPath = function (path, offset, reverse, trim) {
@@ -422,7 +431,10 @@ var Converter = (function () {
         var inTangents = path.inTangents;
         var outTangents = path.outTangents;
         var vertices = path.vertices;
-        if (trim.start != 0.0 || trim.end != 1.0) {
+        if (Math.abs(trim.end - trim.start) < 0.001 || trim.end < trim.start) {
+            return "";
+        }
+        else if (trim.start > 0.0 || trim.end < 1.0) {
             return this.trimmedPath(path, reverse, trim);
         }
         for (var index = 0; index < vertices.length; index++) {
@@ -437,42 +449,34 @@ var Converter = (function () {
             var it = inTangents[index];
             var ot = outTangents[index];
             if (index == 0) {
-                d += "M" + vertex[0].toFixed(3) + " " + vertex[1].toFixed(3) + " ";
+                d += "M" + vertex[0] + " " + vertex[1] + " ";
             }
             else if (index == vertices.length) {
                 if (!path.closed) {
                     continue;
                 }
-                d += "C" + (vertices[index - 1][0] + outTangents[index - 1][0]).toFixed(3) +
-                    " " + (vertices[index - 1][1] + outTangents[index - 1][1]).toFixed(3) +
-                    " " + (vertices[0][0] + inTangents[0][0]).toFixed(3) +
-                    " " + (vertices[0][1] + inTangents[0][1]).toFixed(3) +
-                    " " + (vertices[0][0]).toFixed(3) +
-                    " " + (vertices[0][1]).toFixed(3) +
+                d += "C" + (vertices[index - 1][0] + outTangents[index - 1][0]) +
+                    " " + (vertices[index - 1][1] + outTangents[index - 1][1]) +
+                    " " + (vertices[0][0] + inTangents[0][0]) +
+                    " " + (vertices[0][1] + inTangents[0][1]) +
+                    " " + (vertices[0][0]) +
+                    " " + (vertices[0][1]) +
                     " ";
             }
             else {
-                d += "C" + (vertices[index - 1][0] + outTangents[index - 1][0]).toFixed(3) +
-                    " " + (vertices[index - 1][1] + outTangents[index - 1][1]).toFixed(3) +
-                    " " + (vertex[0] + inTangents[index][0]).toFixed(3) +
-                    " " + (vertex[1] + inTangents[index][1]).toFixed(3) +
-                    " " + (vertex[0]).toFixed(3) +
-                    " " + (vertex[1]).toFixed(3) +
+                d += "C" + (vertices[index - 1][0] + outTangents[index - 1][0]) +
+                    " " + (vertices[index - 1][1] + outTangents[index - 1][1]) +
+                    " " + (vertex[0] + inTangents[index][0]) +
+                    " " + (vertex[1] + inTangents[index][1]) +
+                    " " + (vertex[0]) +
+                    " " + (vertex[1]) +
                     " ";
             }
         }
         if (path.closed) {
             d += "Z";
         }
-        // if (inverted) {
-        //     let solidPath = '';
-        //     solidPath = 'M0 0';
-        //     solidPath += ' h' + layer.width;
-        //     solidPath += ' v' + layer.height;
-        //     solidPath += ' h-' + layer.width;
-        //     solidPath += ' v-' + layer.height + ' ';
-        //     d = solidPath + d;
-        // }
+        d = d.replace(/([0-9]+\.[0-9][0-9][0-9])[0-9]+/ig, "$1");
         return d;
     };
     Converter.prototype.requestShapes = function (layer) {
