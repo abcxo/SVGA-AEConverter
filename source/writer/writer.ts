@@ -33,9 +33,14 @@ class Writer {
 
     copyImages() {
         let _File = File as any;
+        let saved = {};
         for (var index = 0; index < this.converter.res.length; index++) {
             var element = this.converter.res[index];
             if (element.psdID !== undefined) {
+                if (saved[element.psdID] === true) {
+                    continue;
+                }
+                saved[element.psdID] = true;
                 this.saveSource(element);
             }
             else {
@@ -117,7 +122,7 @@ class Writer {
                     clipPath: element.values.mask[index],
                     shapes: element.values.shapes[index],
                 };
-                if (obj.alpha === undefined || obj.alpha <= 0.0) {
+                if (obj.alpha === undefined || obj.alpha <= 0.0 || (obj.transform !== undefined && (obj.transform.a == 0.0 || obj.transform.d == 0.0))) {
                     delete obj.alpha;
                     delete obj.layout;
                     delete obj.transform;
