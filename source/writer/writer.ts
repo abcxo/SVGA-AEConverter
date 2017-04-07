@@ -136,12 +136,12 @@ class Writer {
                     delete obj.transform;
                 }
                 else {
-                    obj.transform.a = parseFloat(obj.transform.a.toFixed(3))
-                    obj.transform.b = parseFloat(obj.transform.b.toFixed(3))
-                    obj.transform.c = parseFloat(obj.transform.c.toFixed(3))
-                    obj.transform.d = parseFloat(obj.transform.d.toFixed(3))
-                    obj.transform.tx = parseFloat(obj.transform.tx.toFixed(3))
-                    obj.transform.ty = parseFloat(obj.transform.ty.toFixed(3))
+                    obj.transform.a = String(obj.transform.a).indexOf("e") > 0 ? obj.transform.a : parseFloat(obj.transform.a.toFixed(6))
+                    obj.transform.b = String(obj.transform.b).indexOf("e") > 0 ? obj.transform.b : parseFloat(obj.transform.b.toFixed(6))
+                    obj.transform.c = String(obj.transform.c).indexOf("e") > 0 ? obj.transform.c : parseFloat(obj.transform.c.toFixed(6))
+                    obj.transform.d = String(obj.transform.d).indexOf("e") > 0 ? obj.transform.d : parseFloat(obj.transform.d.toFixed(6))
+                    obj.transform.tx = String(obj.transform.tx).indexOf("e") > 0 ? obj.transform.tx : parseFloat(obj.transform.tx.toFixed(6))
+                    obj.transform.ty = String(obj.transform.ty).indexOf("e") > 0 ? obj.transform.ty : parseFloat(obj.transform.ty.toFixed(6))
                 }
                 if (obj.clipPath === undefined || typeof obj.clipPath !== "string" || obj.clipPath === "") {
                     delete obj.clipPath;
@@ -153,12 +153,12 @@ class Writer {
                             delete element.transform;
                         }
                         else {
-                            element.transform.a = parseFloat(element.transform.a.toFixed(3))
-                            element.transform.b = parseFloat(element.transform.b.toFixed(3))
-                            element.transform.c = parseFloat(element.transform.c.toFixed(3))
-                            element.transform.d = parseFloat(element.transform.d.toFixed(3))
-                            element.transform.tx = parseFloat(element.transform.tx.toFixed(3))
-                            element.transform.ty = parseFloat(element.transform.ty.toFixed(3))
+                            element.transform.a = String(element.transform.a).indexOf("e") > 0 ? element.transform.a : parseFloat(element.transform.a.toFixed(6))
+                            element.transform.b = String(element.transform.b).indexOf("e") > 0 ? element.transform.b : parseFloat(element.transform.b.toFixed(6))
+                            element.transform.c = String(element.transform.c).indexOf("e") > 0 ? element.transform.c : parseFloat(element.transform.c.toFixed(6))
+                            element.transform.d = String(element.transform.d).indexOf("e") > 0 ? element.transform.d : parseFloat(element.transform.d.toFixed(6))
+                            element.transform.tx = String(element.transform.tx).indexOf("e") > 0 ? element.transform.tx : parseFloat(element.transform.tx.toFixed(6))
+                            element.transform.ty = String(element.transform.ty).indexOf("e") > 0 ? element.transform.ty : parseFloat(element.transform.ty.toFixed(6))
                         }
                     }
                     if (lastShapeHash === JSON.stringify(obj.shapes)) {

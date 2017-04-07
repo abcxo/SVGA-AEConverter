@@ -5345,12 +5345,12 @@ var Writer = (function () {
                     delete obj.transform;
                 }
                 else {
-                    obj.transform.a = parseFloat(obj.transform.a.toFixed(3));
-                    obj.transform.b = parseFloat(obj.transform.b.toFixed(3));
-                    obj.transform.c = parseFloat(obj.transform.c.toFixed(3));
-                    obj.transform.d = parseFloat(obj.transform.d.toFixed(3));
-                    obj.transform.tx = parseFloat(obj.transform.tx.toFixed(3));
-                    obj.transform.ty = parseFloat(obj.transform.ty.toFixed(3));
+                    obj.transform.a = String(obj.transform.a).indexOf("e") > 0 ? obj.transform.a : parseFloat(obj.transform.a.toFixed(6));
+                    obj.transform.b = String(obj.transform.b).indexOf("e") > 0 ? obj.transform.b : parseFloat(obj.transform.b.toFixed(6));
+                    obj.transform.c = String(obj.transform.c).indexOf("e") > 0 ? obj.transform.c : parseFloat(obj.transform.c.toFixed(6));
+                    obj.transform.d = String(obj.transform.d).indexOf("e") > 0 ? obj.transform.d : parseFloat(obj.transform.d.toFixed(6));
+                    obj.transform.tx = String(obj.transform.tx).indexOf("e") > 0 ? obj.transform.tx : parseFloat(obj.transform.tx.toFixed(6));
+                    obj.transform.ty = String(obj.transform.ty).indexOf("e") > 0 ? obj.transform.ty : parseFloat(obj.transform.ty.toFixed(6));
                 }
                 if (obj.clipPath === undefined || typeof obj.clipPath !== "string" || obj.clipPath === "") {
                     delete obj.clipPath;
@@ -5362,12 +5362,12 @@ var Writer = (function () {
                             delete element_1.transform;
                         }
                         else {
-                            element_1.transform.a = parseFloat(element_1.transform.a.toFixed(3));
-                            element_1.transform.b = parseFloat(element_1.transform.b.toFixed(3));
-                            element_1.transform.c = parseFloat(element_1.transform.c.toFixed(3));
-                            element_1.transform.d = parseFloat(element_1.transform.d.toFixed(3));
-                            element_1.transform.tx = parseFloat(element_1.transform.tx.toFixed(3));
-                            element_1.transform.ty = parseFloat(element_1.transform.ty.toFixed(3));
+                            element_1.transform.a = String(element_1.transform.a).indexOf("e") > 0 ? element_1.transform.a : parseFloat(element_1.transform.a.toFixed(6));
+                            element_1.transform.b = String(element_1.transform.b).indexOf("e") > 0 ? element_1.transform.b : parseFloat(element_1.transform.b.toFixed(6));
+                            element_1.transform.c = String(element_1.transform.c).indexOf("e") > 0 ? element_1.transform.c : parseFloat(element_1.transform.c.toFixed(6));
+                            element_1.transform.d = String(element_1.transform.d).indexOf("e") > 0 ? element_1.transform.d : parseFloat(element_1.transform.d.toFixed(6));
+                            element_1.transform.tx = String(element_1.transform.tx).indexOf("e") > 0 ? element_1.transform.tx : parseFloat(element_1.transform.tx.toFixed(6));
+                            element_1.transform.ty = String(element_1.transform.ty).indexOf("e") > 0 ? element_1.transform.ty : parseFloat(element_1.transform.ty.toFixed(6));
                         }
                     }
                     if (lastShapeHash === JSON.stringify(obj.shapes)) {
