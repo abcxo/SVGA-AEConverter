@@ -11,9 +11,14 @@ class Writer {
 
     converter: Converter;
     outPath: string = app.project.file.path + "/svga_works";
+    imageList: Array<string>;
 
-    constructor(converter: Converter) {
+    constructor(converter: Converter, outputPath: string) {
         this.converter = converter;
+        if (outputPath != null){
+            this.outPath = outputPath;
+            this.imageList = [];
+        }
     }
 
     write() {
@@ -36,6 +41,9 @@ class Writer {
         let saved = {};
         for (var index = 0; index < this.converter.res.length; index++) {
             var element = this.converter.res[index];
+
+            this.imageList.push(element.name);
+
             if (element.psdID !== undefined) {
                 if (saved[element.psdID] === true) {
                     continue;

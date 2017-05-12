@@ -1,0 +1,91 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html lang="en">
+<head>
+    <meta http-equiv="content-type" content="text/html" charset="UTF-8">
+
+    <link href="./src/css/bootstrap.min.css" rel="stylesheet">
+    <link href="./src/css/bootstrap-slider.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="./src/css/main.css">
+    <link rel="stylesheet" href="./src/css/rangeslider.css">
+    <script src="./src/assets/jquery.min.js"></script>
+    <script src="./src/assets/rangeslider.min.js"></script>
+
+    <script type="text/javascript" src="./src/helpers/CSInterface.js"></script>
+    <script type="text/javascript" src="./src/helpers/CSInterfaceHelper.js"></script>
+    <script src="./src/actions/progressAction.js"></script>
+    <script src="./src/actions/PageActions.js"></script>
+    <script src="./src/assets/pngquant.min.js"></script>
+    <script src="./src/assets/jszip.min.js"></script>
+    <script src="./src/assets/svga.min.js"></script>
+
+    <script type="text/javascript">
+    loadJSX("compsManager.jsx");
+    </script>
+
+    <title>Title</title>
+</head>
+
+<style>
+
+    body{
+        background-color: #474747;
+    }
+
+    .clearfix{
+        margin-top: 4%;
+    }
+
+    .col-md-4{
+        float: left;
+    }
+
+    .progressBarDiv{
+        margin-top: 24px;
+    }
+
+</style>
+
+<body>
+
+<div class="container">
+
+    <div class="row clearfix">
+
+        <div class="col-md-4 column">
+            <button type="button" class="btn btn-default btn-block btn-success" id="selectPathBtn" onclick="selectPath()">输出路径</button>
+        </div>
+        <div class="col-md-4 column">
+            <button type="button" class="btn btn-default btn-block btn-success" id="startConvertBtn" disabled onclick="startConvert()">开始转换</button>
+        </div>
+
+        <div class="col-md-4 column">
+            <sub>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</sub>
+        </div>
+
+        <div class="col-md-4 column">
+            <button type="button" class="btn btn-default btn-block btn-success" id="selectFile" onclick="selectFile()">选择播放文件</button>
+        </div>
+
+    </div>
+
+    <div class="row clearfix">
+        <div class="col-md-12 column">
+
+            <canvas id="canvas" width="400" height="400" style="background-color: #333333"></canvas>
+
+        </div>
+    </div>
+
+    <div class="progressBarDiv">
+
+        <input type="range" min="0" max="200" value="0" id="progressBar_" data-rangeslider>
+        <output></output>
+    </div>
+
+</div>
+
+</body>
+</html>
+
+

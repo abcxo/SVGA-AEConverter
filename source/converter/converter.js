@@ -40,7 +40,7 @@ var Converter = (function () {
                     continue;
                 }
                 m[element.source.id] = true;
-                if (element.source.file.fsName.indexOf(".psd") > 0) {
+                if (element.source.file.fsName.indexOf(".psd") > 0 || element.source.file.fsName.indexOf(".psb") > 0) {
                     this.res.push({
                         name: "psd_" + element.source.id + ".png",
                         path: element.source.file.fsName,
@@ -103,7 +103,7 @@ var Converter = (function () {
             }
             else if (element.source instanceof Object && element.source.file) {
                 var eName = element.source.name;
-                if (eName.indexOf('.psd') > 0) {
+                if (eName.indexOf('.psd') > 0 || eName.indexOf('.psb') > 0) {
                     eName = "psd_" + element.source.id + ".png";
                 }
                 else {

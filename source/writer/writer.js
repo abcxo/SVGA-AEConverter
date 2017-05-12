@@ -7,9 +7,13 @@
  * Build: npm install & npm start
  */
 var Writer = (function () {
-    function Writer(converter) {
+    function Writer(converter, outputPath) {
         this.outPath = app.project.file.path + "/svga_works";
         this.converter = converter;
+        if (outputPath != null) {
+            this.outPath = outputPath;
+            this.imageList = [];
+        }
     }
     Writer.prototype.write = function () {
         this.createOutputDirectories();
@@ -29,6 +33,7 @@ var Writer = (function () {
         var saved = {};
         for (var index = 0; index < this.converter.res.length; index++) {
             var element = this.converter.res[index];
+            this.imageList.push(element.name);
             if (element.psdID !== undefined) {
                 if (saved[element.psdID] === true) {
                     continue;

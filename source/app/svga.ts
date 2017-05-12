@@ -10,7 +10,27 @@
  * Env: After Effects CC 2015
  * Build: npm install & npm start
  */
+var imageList = null;
 
-let thisConverter = new Converter(app);
-let thisWriter = new Writer(thisConverter);
-thisWriter.write()
+var startConvert = function (outputPath) {
+
+    //将路径和文件名称分离
+    var pathArr = outputPath.split('/');
+    pathArr.pop();
+
+    var path = pathArr.join('/') + "/svga_works";
+
+    let thisConverter = new Converter(app);
+
+    let thisWriter = new Writer(thisConverter, path);
+    thisWriter.write();
+
+    imageList = thisWriter.imageList;
+    return path;
+}
+
+var getImageList = function () {
+
+    return JSON.stringify(imageList);
+
+}
