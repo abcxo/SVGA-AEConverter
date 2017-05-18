@@ -4,6 +4,7 @@ var outPutPath;
 var inputPath;
 
 var player;
+var parser;
 
 function selectPath() {
 
@@ -55,43 +56,37 @@ function selectFile() {
 
 function preview(filePath) {
 
-    player = new Svga.Player('#canvas');
-    var parser = new Svga.Parser(undefined, undefined);
-
     var fileName = filePath;
 
     var file = window.cep.fs.readFile(fileName, "Base64");
 
     parser.load("data:image/svga;base64," + file.data, function (videoItem) {
 
-       // // $('#canvas').css('width', videoItem.videoSize.width + "px");
-       // // $('#canvas').css('height', videoItem.videoSize.height + "px");
-
-        // var scaleX = 400 / videoItem.videoSize.width;
-        // var scaleY = 400 / videoItem.videoSize.height;
-        //
-        var scale = 1;
-        var moveX = 0;
-        var moveY = 0;
-
-        if (videoItem.videoSize.width > videoItem.videoSize.height){
-
-            scale = (videoItem.videoSize.height / videoItem.videoSize.width);
-            moveY = ((400 - 400 * scale)) / 2;
-
-        }else{
-
-            scale = (videoItem.videoSize.width / videoItem.videoSize.height);
-            moveX = ((400 - 400 * scale)) / 2;
-        }
-
-        player.setVideoItem(videoItem);
-        player._stageLayer.setTransform(moveX, moveY, scale, scale);
-
-        player.stepToFrame(1, false);
+        previewWithVideoItems(videoItem);
 
     });
+}
 
+function previewWithVideoItems(videoItem) {
+    var scale = 1;
+    var moveX = 0;
+    var moveY = 0;
+
+    if (videoItem.videoSize.width > videoItem.videoSize.height){
+
+        scale = (videoItem.videoSize.height / videoItem.videoSize.width);
+        moveY = ((400 - 400 * scale)) / 2;
+
+    }else{
+
+        scale = (videoItem.videoSize.width / videoItem.videoSize.height);
+        moveX = ((400 - 400 * scale)) / 2;
+    }
+
+    player.setVideoItem(videoItem);
+    player._stageLayer.setTransform(moveX, moveY, scale, scale);
+
+    player.startAnimation();
 }
 
 function copyToZip(zipPath, imageList) {
@@ -126,14 +121,14 @@ function copyToZip(zipPath, imageList) {
     zip.file("movie.spec", movinUTF8);
 
     window.cep.fs.deleteFile(zipPath + '/movie.spec', 'Base64');
+    require("fs").rmdir(zipPath, function (err) {});
 
     zip.generateAsync({type:"Base64"})
         .then(function(content) {
             window.cep.fs.writeFile (outPutPath, content, "Base64");
 
             preview(outPutPath);
-            var startConvertBtn = document.getElementById("startConvertBtn");
-            startConvertBtn.disabled = false;
+            outPutPath = undefined;
         });
 }
 

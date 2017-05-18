@@ -4,16 +4,9 @@
     <meta http-equiv="content-type" content="text/html" charset="UTF-8">
 
     <link href="./src/css/bootstrap.min.css" rel="stylesheet">
-    <link href="./src/css/bootstrap-slider.min.css" rel="stylesheet">
-
-    <link rel="stylesheet" href="./src/css/main.css">
-    <link rel="stylesheet" href="./src/css/rangeslider.css">
-    <script src="./src/assets/jquery.min.js"></script>
-    <script src="./src/assets/rangeslider.min.js"></script>
 
     <script type="text/javascript" src="./src/helpers/CSInterface.js"></script>
     <script type="text/javascript" src="./src/helpers/CSInterfaceHelper.js"></script>
-    <script src="./src/actions/progressAction.js"></script>
     <script src="./src/actions/PageActions.js"></script>
     <script src="./src/assets/pngquant.min.js"></script>
     <script src="./src/assets/jszip.min.js"></script>
@@ -23,13 +16,17 @@
     loadJSX("compsManager.jsx");
     </script>
 
-    <title>Title</title>
+    <title>SVGAConverter</title>
 </head>
 
 <style>
 
     body{
         background-color: #474747;
+    }
+
+    .container{
+        margin-left: 20px;
     }
 
     .clearfix{
@@ -76,14 +73,40 @@
 
         </div>
     </div>
-
-    <div class="progressBarDiv">
-
-        <input type="range" min="0" max="200" value="0" id="progressBar_" data-rangeslider>
-        <output></output>
-    </div>
-
 </div>
+
+<script type="text/javascript">
+
+    parser = new Svga.Parser(undefined, undefined);
+
+    var loadingName =  csInterface.getSystemPath(SystemPath.APPLICATION) + "/src/res/loading.svga";
+
+    var file = window.cep.fs.readFile(loadingName, "Base64");
+
+    parser.load("data:image/svga;base64," + file.data, function (videoItem) {
+
+        player = new Svga.Player('#canvas');
+
+        previewWithVideoItems(videoItem);
+
+    });
+
+    /// 右键菜单。
+    csInterface.setContextMenu(
+        '<Menu>' +
+        '<MenuItem Id="playMovie" Label="Play" Enabled="true" Checked="false" />' +
+        '<MenuItem Id="stopMovie" Label="Stop" Enabled="true" Checked="false" />' +
+        '</Menu>',
+
+        function( menu ) {
+            switch( menu ) {
+                case "playMovie"  : player.startAnimation();; break;
+                case "stopMovie"  : player.pauseAnimation(); break;
+
+                default: break;
+            }
+        });
+</script>
 
 </body>
 </html>

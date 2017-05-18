@@ -41,9 +41,3 @@ function browseFolder() {
     }
     f.close();
 }
-
-var deleteWorkingFolder = function () {
-
-
-
-}

@@ -1,8 +1,8 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
 
-<ExtensionManifest xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Version="6.0" ExtensionBundleId="com.zhan.SVGAConverter" ExtensionBundleVersion="1.0.1" ExtensionBundleName="SVGAConverter">
+<ExtensionManifest xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Version="6.0" ExtensionBundleId="com.errnull.SVGAConverter_AE" ExtensionBundleVersion="1.0.1" ExtensionBundleName="SVGAConverter_AE">
     <ExtensionList>
-        <Extension Id="com.zhan.SVGAConverter" Version="1.0.1"/>
+        <Extension Id="com.errnull.SVGAConverter_AE" Version="1.0.1"/>
     </ExtensionList>
     <ExecutionEnvironment>
         <HostList>
@@ -25,19 +25,19 @@
             <Locale Code="All"/>
         </LocaleList>
         <RequiredRuntimeList>
-            <RequiredRuntime Name="CSXS" Version="5.0"/>
+            <RequiredRuntime Name="CSXS" Version="6.0"/>
         </RequiredRuntimeList>
     </ExecutionEnvironment>
     <DispatchInfoList>
-        <Extension Id="com.zhan.SVGAConverter">
+        <Extension Id="com.errnull.SVGAConverter_AE">
             <DispatchInfo>
                 <Resources>
                     <MainPath>./index.html</MainPath>
                     <ScriptPath>./jsx/svga.jsx</ScriptPath>
                     <CEFCommandLine>
                         <Parameter>--enable-nodejs</Parameter>
-                        <Parameter>--mixed-context</Parameter>
-                        <Parameter>--enable-media-stream</Parameter>
+                        <!--<Parameter>&#45;&#45;mixed-context</Parameter>-->
+                        <!--<Parameter>&#45;&#45;enable-media-stream</Parameter>-->
                     </CEFCommandLine>
                 </Resources>
                 <Lifecycle>
@@ -47,23 +47,23 @@
                     <!-- 打开程序的时候自启动插件 -->
                 </Lifecycle>
                 <UI>
-                    <Type>Panel</Type>
+                    <Type>Modeless</Type>
                     <!-- 设置扩展显示为面板模式 -->
-                    <Menu>SVGAConverter</Menu>
+                    <Menu>SVGAConverter_AE</Menu>
                     <!-- 设置扩展标题 -->
                     <Geometry>
                         <!-- 设置面板尺寸 -->
                         <Size>
-                            <Width>472</Width>
-                            <Height>575</Height>
+                            <Width>470</Width>
+                            <Height>500</Height>
                         </Size>
                         <MinSize>
-                            <Height>472</Height>
-                            <Width>575</Width>
+                            <Width>470</Width>
+                            <Height>500</Height>
                         </MinSize>
                         <MaxSize>
-                            <Height>472</Height>
-                            <Width>575</Width>
+                            <Width>470</Width>
+                            <Height>500</Height>
                         </MaxSize>
                     </Geometry>
                     <Icons/>

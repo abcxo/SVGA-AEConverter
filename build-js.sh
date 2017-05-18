@@ -1,13 +1,22 @@
 #!/usr/bin/env bash
 
-mv ./build/1.1.0/svga.jsx ./source/com.zhan.SVGAConverter/jsx
+mkdir ./build/com.errnull.SVGAConverter_AE
+
+cp -r ./source/CSXS ./build/com.errnull.SVGAConverter_AE
+cp -r ./source/index.html ./build/com.errnull.SVGAConverter_AE
+cp -r ./source/jsx ./build/com.errnull.SVGAConverter_AE
+cp -r ./source/src ./build/com.errnull.SVGAConverter_AE
+
+mv ./build/1.1.0/svga.jsx ./build/com.errnull.SVGAConverter_AE/jsx
 
 cd ./source/ZXPSignCmd/
 
 rm ../../build/1.1.0/SVGAConverter.zxp
 
-./ZXPSignCmd  -sign  "../com.zhan.SVGAConverter"  "../../build/1.1.0/SVGAConverter.zxp"  "./errnull.p12"  "zhan"
+./ZXPSignCmd  -sign  "../../build/com.errnull.SVGAConverter_AE"  "../../build/1.1.0/SVGAConverter.zxp"  "./errnull.p12"  "zhan"
 
 cp -f ../../build/1.1.0/SVGAConverter.zxp ../../windows
 
 cp -f ../../build/1.1.0/SVGAConverter.zxp ../../mac
+
+rm -rf ../../build/com.errnull.SVGAConverter_AE
