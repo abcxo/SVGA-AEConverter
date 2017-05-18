@@ -5,26 +5,38 @@
 ## 用法
 
 clone 或 download 仓库
+在项目目录下使用命令行：
+
+```
+$ npm install
+$ npm start
+```
+
 
 ### windows
 
-* 将 windows 目录复制到 aep 文件夹下；
-* 打开 After Effects；
-* 选择 菜单 > 文件 > 脚本 > 运行脚本文件；
-* 选择刚才复制到的 windows 下的 svga.jsx 文件；
-* 稍等片刻， aep 目录下就会出现 svga_works 文件夹；
-* 打开 windows 目录，双击 script.bat 执行转换程序；
-* 稍等片刻， aep 目录下就会出现 output.svga 文件，此文件即为最终 SVGA 源文件。
+* 安装 windows/ZXPInstaller.Setup.exe;
+* 打开安装后的 ZXPInstaller;
+* 将 windows/SVGAConverter.zxp 拖进 ZXPInstaller 安装插件;
+* 打开 After Effects 将 **被转换文件** 保存;
+* 选择菜单 > 窗口 > 扩展 > SVGAConverter_AE;
+* 选择 输出路径 > 开始转换 稍等片刻，svga 文件就会生成在您所输出的目录并开始播放;
+* 您也可以直接点击 选择播放文件 直接播放本地的 *.svga文件;
+* 使用鼠标右键可以 开始/暂停播放。
 
 ### mac 
-* 将 mac 目录复制到 aep 文件夹下；
-* 打开 After Effects；
-* 选择 菜单 > 文件 > 脚本 > 运行脚本文件；
-* 选择刚才复制到的 mac 下的 svga.jsx 文件；
-* 稍等片刻， aep 目录下就会出现 svga_works 文件夹；
-* 打开 mac 目录，双击 script.command（如果出现权限问题，先执行 sudo chmod 777 script.command）执行转换程序；
+* 安装 mac/ZXPInstaller;
+* 打开安装后的 ZXPInstaller;
+* 将 mac/SVGAConverter.zxp 拖进 ZXPInstaller 安装插件;
+* 打开 After Effects 将 **被转换文件** 保存;
+* 选择菜单 > 窗口 > 扩展 > SVGAConverter_AE;
+* 选择 输出路径 > 开始转换 稍等片刻，svga 文件就会生成在您所输出的目录并开始播放;
 * 稍等片刻， aep 目录下就会出现 output.svga 文件，此文件即为最终 SVGA 源文件。
+* 您也可以直接点击 选择播放文件 直接播放本地的 *.svga文件;
+* 使用鼠标右键可以 开始/暂停播放。
 
 ## 测试
 
-要测试生成文件是否可以正常使用，使用浏览器，打开 http://legox.yy.com/svga/svgaplayer/ ，选择或拖入 SVGA 源文件，即可预览动画效果。
+要测试生成文件是否可以正常使用：
+1. 使用 菜单 > 窗口 > 扩展 > SVGAConverter_AE 直接播放本地 svga 文件;
+2. 使用浏览器，打开 http://legox.yy.com/svga/svgaplayer/ ，选择或拖入 SVGA 源文件，即可预览动画效果。
