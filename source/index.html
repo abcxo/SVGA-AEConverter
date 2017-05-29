@@ -79,7 +79,7 @@
 
     parser = new Svga.Parser(undefined, undefined);
 
-    var loadingName =  csInterface.getSystemPath(SystemPath.APPLICATION) + "/src/res/loading.svga";
+    var loadingName = csInterface.getSystemPath(SystemPath.APPLICATION) + "/src/res/loading.svga";
 
     var file = window.cep.fs.readFile(loadingName, "Base64");
 
@@ -100,7 +100,7 @@
 
         function( menu ) {
             switch( menu ) {
-                case "playMovie"  : player.startAnimation();; break;
+                case "playMovie"  : player.startAnimation(); break;
                 case "stopMovie"  : player.pauseAnimation(); break;
 
                 default: break;
