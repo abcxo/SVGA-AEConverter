@@ -1,10 +1,24 @@
 var csInterface = new CSInterface();
+var nodePath = require("path");
+var fs = require('fs');
+var spawn = require("child_process");
 
 var outPutPath;
 var inputPath;
 
 var player;
 var parser;
+
+var workPath;
+
+var CURRENT_PROJECT_PATH = csInterface.getSystemPath(SystemPath.APPLICATION);
+
+// 关闭窗口的时候关闭服务器
+window.onunload = function()
+{
+    // 删除临时文件目录
+    deleteFlider(workPath, true, function () {});
+}
 
 function selectPath() {
 
@@ -31,6 +45,7 @@ function startConvert() {
         csInterface.evalScript("startConvert('"+outPutPath +"');", function (result) {
 
             var imagePath = result;
+            workPath = result;
 
             //获取图片资源列表
             csInterface.evalScript("getImageList();", function (result) {
@@ -92,55 +107,167 @@ function previewWithVideoItems(videoItem) {
 function copyToZip(zipPath, imageList) {
     var zip = new JSZip();
 
-    //判断是否有图片
+    // 判断是否有图片
     if (imageList.length){
 
-        for (var item in imageList){
+        stepToZip(zip, 0, imageList, zipPath);
+    }else{
 
-            var filename = zipPath + '/' + imageList[item];
+        // 没有图片
+        var movin = window.cep.fs.readFile(zipPath + '/movie.spec', 'Base64');
 
-            var imgFile = window.cep.fs.readFile(filename ,"Base64");
+        var movinUTF8 = cep.encoding.convertion.b64_to_utf8(movin.data);
 
-            var data = dataURLtoUint8(imgFile.data);
+        zip.file("movie.spec", movinUTF8);
 
-            var compressedData = pngquant(data, { quality: "0-100", speed: "2" }, function (message) {
+        zip.generateAsync({type:"Base64"})
+            .then(function(content) {
+                window.cep.fs.writeFile (outPutPath, content, "Base64");
+
+                alert("xxxx" + workPath);
+                // 删除临时文件目录
+                deleteFlider(workPath, true, function () {});
+
+                preview(outPutPath);
+                outPutPath = undefined;
             });
-            var compressedBlob = new Blob([compressedData.data.buffer]);
 
-            zip.file(imageList[item], compressedBlob);
-
-            //删除本地文件
-            window.cep.fs.deleteFile(filename);
-        }
     }
-
-    var movin = window.cep.fs.readFile(zipPath + '/movie.spec', 'Base64');
-
-    var movinUTF8 = cep.encoding.convertion.b64_to_utf8(movin.data);
-
-    zip.file("movie.spec", movinUTF8);
-
-    window.cep.fs.deleteFile(zipPath + '/movie.spec', 'Base64');
-    require("fs").rmdir(zipPath, function (err) {});
-
-    zip.generateAsync({type:"Base64"})
-        .then(function(content) {
-            window.cep.fs.writeFile (outPutPath, content, "Base64");
-
-            preview(outPutPath);
-            outPutPath = undefined;
-        });
 }
 
-function dataURLtoUint8(dataurl) {
+function stepToZip(zip, currentIndex, imageList, zipPath, callback) {
 
-    var bstr = atob(dataurl);
+    var  imageName = imageList[currentIndex].toString();
+    var imagePath = nodePath.join(zipPath, imageName);
 
-    var  n = bstr.length;
+    var pngquantAndZip = function (imagePath) {
 
-    var u8arr = new Uint8Array(n);
-    while (n--) {
-        u8arr[n] = bstr.charCodeAt(n);
+        pngquantImage(imagePath, imagePath, function () {
+
+            waitForFileIfExist(imagePath, function () {
+
+                fs.readFile(imagePath, 'Base64', function (err, data) {
+
+                    zip.file(imageName, data, {base64: true});
+
+                    if (currentIndex == imageList.length - 1){
+
+                        var movin = window.cep.fs.readFile(zipPath + '/movie.spec', 'Base64');
+
+                        var movinUTF8 = cep.encoding.convertion.b64_to_utf8(movin.data);
+
+                        zip.file("movie.spec", movinUTF8);
+
+                        zip.generateAsync({type:"Base64"})
+                            .then(function(content) {
+                                window.cep.fs.writeFile (outPutPath, content, "Base64");
+
+                                preview(outPutPath);
+                                outPutPath = undefined;
+                            });
+
+                    }else {
+                        stepToZip(zip, ++currentIndex, imageList, zipPath);
+                    }
+                });
+            });
+        });
+    };
+
+    // 判断照片中是否有 jpg 图片
+    if (imageName.split('.').pop() == 'jpg'){
+
+        convertJPGToPNG(imagePath, null, pngquantAndZip(imagePath));
+
+    }else if (imageName.split('.').pop() == 'png'){
+
+        pngquantAndZip(imagePath);
     }
-    return u8arr;
+}
+
+function deleteFlider(path, isFirstFolder, callback) {
+
+    if(fs.existsSync(path)) {
+        fs.readdirSync(path).forEach(function (file) {
+
+            var curPath = nodePath.join(path, file);
+            if(fs.statSync(curPath).isDirectory()) { // recurse
+                deleteFlider(curPath, false);
+            } else { // delete file
+                fs.unlinkSync(curPath);
+            }
+        });
+        fs.rmdirSync(path);
+    }
+    if (isFirstFolder){
+        callback();
+    }
+}
+
+function waitForFileIfExist(filePath, callback) {
+
+    // 判断是否有这个文件
+    fs.exists(filePath, function(exists) {
+        if (exists){
+            callback();
+        }else{
+            // 如果没有 500 ms 后重新查看
+            setTimeout("waitForFileIfExist(filePath, callback)", 500);
+        }
+    });
+}
+
+function convertJPGToPNG(imageInputPath, imageOutputPath, callback) {
+
+    var img = new Image();
+    img.onload = function () {
+
+        var canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        canvas.getContext("2d").drawImage(img, 0, 0);
+
+        if (imageOutputPath == null){
+
+            callback(canvas.toDataURL("image/png").split(',').pop(), nodePath.basename(result, '.jpg'));
+
+        }else{
+            fs.writeFile(imageOutputPath, canvas.toDataURL("image/png").split(',').pop(), "Base64", function (err) {
+                callback(imageOutputPath);
+            });
+        }
+    };
+    img.src = imageInputPath;
+
+}
+
+function pngquantImage(inImgPath, outImgPath, callback) {
+
+    var program;
+
+    // 判断当前系统
+    var OSVersion = csInterface.getOSInformation();
+    if (OSVersion.indexOf("Windows") >= 0) {
+
+        program = nodePath.join(CURRENT_PROJECT_PATH, 'pngquant', 'WINDOWS', 'pngquant.exe');
+        program = '\"' + program + '\"';
+
+    } else if (OSVersion.indexOf("Mac") >= 0) {
+
+        program = nodePath.join(CURRENT_PROJECT_PATH, 'pngquant', 'OSX', 'pngquant').replace('Application ', 'Application\\ ');
+    }
+
+    var args = [
+
+        '--quality=0-100',
+        '--speed 2',
+        inImgPath,
+        '--output',
+        outImgPath,
+        '--force'
+    ];
+
+    spawn.exec(program + ' ' + args.join(' '), function () {
+        callback();
+    });
 }
