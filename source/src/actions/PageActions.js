@@ -87,8 +87,6 @@ function previewWithVideoItems(videoItem) {
     var moveX = 0;
     var moveY = 0;
 
-    alert(videoItem.videoSize.width + '---' +videoItem.videoSize.height);
-
     if (videoItem.videoSize.width <= 400 && videoItem.videoSize.height <= 400){
 
         moveX = (400 - videoItem.videoSize.width) / 2;
