@@ -87,15 +87,25 @@ function previewWithVideoItems(videoItem) {
     var moveX = 0;
     var moveY = 0;
 
-    if (videoItem.videoSize.width > videoItem.videoSize.height){
+    alert(videoItem.videoSize.width + '---' +videoItem.videoSize.height);
 
-        scale = (videoItem.videoSize.height / videoItem.videoSize.width);
-        moveY = ((400 - 400 * scale)) / 2;
+    if (videoItem.videoSize.width <= 400 && videoItem.videoSize.height <= 400){
+
+        moveX = (400 - videoItem.videoSize.width) / 2;
+        moveY = (400 - videoItem.videoSize.height) / 2;
+
 
     }else{
 
-        scale = (videoItem.videoSize.width / videoItem.videoSize.height);
-        moveX = ((400 - 400 * scale)) / 2;
+        if (videoItem.videoSize.width > videoItem.videoSize.height){
+
+            moveY = (400 - (videoItem.videoSize.height / videoItem.videoSize.width) * 400) / 2;
+
+        }else{
+
+            scale = (videoItem.videoSize.width / videoItem.videoSize.height);
+            moveX = ((400 - 400 * scale)) / 2;
+        }
     }
 
     player.setVideoItem(videoItem);
