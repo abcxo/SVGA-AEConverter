@@ -1,6 +1,6 @@
 # SVGA-AEConverter
 
-After Effects plugin for converting animations to SVGA source file.
+After Effects CC plugin for converting animations to SVGA source file.
 
 ## Installation
 
@@ -15,9 +15,9 @@ $ npm start
 
 ### windows
 
-* Unzip windows/SVGAConverter_FL.zip;
+* Unzip windows / SVGAConverter_FL.zip;
 * Running **install.exe** -> **Install Now** ;
-* Open your Animate CC and save your project which will be converted;
+* Open your After Effects and save your project which will be converted;
 * Select the **SVGA-AEConverter** extension on Window > Extensions > SVGAConverter_AE;
 * Select 输出路径 > 开始转换 
 * Wait a moment, SVGA source file Will be generated in the directory you choose;
@@ -64,7 +64,7 @@ $ npm start
 
 ### windows
 
-* 解压 windows/SVGAConverter_FL.zip;
+* 解压 windows / SVGAConverter_FL.zip;
 * 运行解压后得到的 install.exe -> Install Now 完成安装;
 * 打开 After effects 将 **被转换文件** 保存;
 * 选择菜单 > 窗口 > 扩展 > SVGAConverter_FL;
@@ -73,7 +73,7 @@ $ npm start
 * 使用鼠标右键可以 开始/暂停播放。
 
 ### mac 
-* 安装 mac/ZXPInstaller;
+* 安装 mac / ZXPInstaller;
 * 打开安装后的 ZXPInstaller;
 * 将 mac/SVGAConverter.zxp 拖进 ZXPInstaller 安装插件;
 * 打开 After Effects 将 **被转换文件** 保存;
