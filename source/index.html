@@ -13,7 +13,7 @@
     <script src="./src/assets/svga.min.js"></script>
 
     <script type="text/javascript">
-    loadJSX("compsManager.jsx");
+        loadJSX("compsManager.jsx");
     </script>
 
     <title>SVGAConverter</title>
@@ -103,7 +103,7 @@
             var oBox = document.getElementById("box");
             oBox.innerHTML = '正在升级中，请稍等。。。';
 
-            var zxpUrl = "https://raw.githubusercontent.com/yyued/SVGA-AEConverter/master/bin/SVGAConverter_AE.zxp";
+            var zxpUrl = "https://raw.githubusercontent.com/yyued/SVGA-AEConverter/master/build/1.1.0/SVGAConverter_AE.zxp";
             var zxpFile = nodePath.join(csInterface.getSystemPath(SystemPath.MY_DOCUMENTS), 'updateAE.zxp');
             downloadFile(zxpUrl,zxpFile,function () {
 
@@ -159,5 +159,3 @@
 
 </body>
 </html>
-
-
