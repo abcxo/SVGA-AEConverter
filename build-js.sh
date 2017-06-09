@@ -1,5 +1,15 @@
 #!/usr/bin/env bash
 
+rm -rf ./updateInfo
+
+varv=v
+dated=$(date +%Y%m%d%H%M)
+updateInfo=${varv}${dated}
+
+echo "$updateInfo" >> updateInfo
+
+rm -rf ./bin/com.errnull.SVGAConverter_AE
+
 mkdir ./build/com.errnull.SVGAConverter_AE
 
 cp -r ./source/CSXS ./build/com.errnull.SVGAConverter_AE
@@ -7,6 +17,8 @@ cp -r ./source/index.html ./build/com.errnull.SVGAConverter_AE
 cp -r ./source/jsx ./build/com.errnull.SVGAConverter_AE
 cp -r ./source/src ./build/com.errnull.SVGAConverter_AE
 cp -r ./source/pngquant ./build/com.errnull.SVGAConverter_AE
+cp -r ./source/node_modules ./build/com.errnull.SVGAConverter_AE
+cp -f ./updateInfo ./build/com.errnull.SVGAConverter_AE
 
 mv ./build/1.1.0/svga.jsx ./build/com.errnull.SVGAConverter_AE/jsx
 

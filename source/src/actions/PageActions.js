@@ -2,6 +2,8 @@ var csInterface = new CSInterface();
 var nodePath = require("path");
 var fs = require('fs');
 var spawn = require("child_process");
+var request = require('request');
+var unzip = require("unzip");
 
 var outPutPath;
 var inputPath;
@@ -17,7 +19,7 @@ var CURRENT_PROJECT_PATH = csInterface.getSystemPath(SystemPath.APPLICATION);
 window.onunload = function()
 {
     // 删除临时文件目录
-    deleteFlider(workPath, true, function () {});
+    deleteFlider(workPath, true, true, function () {});
 }
 
 function selectPath() {
@@ -89,9 +91,6 @@ function previewWithVideoItems(videoItem) {
 
     if (videoItem.videoSize.width <= 400 && videoItem.videoSize.height <= 400){
 
-        moveX = (400 - videoItem.videoSize.width) / 2;
-        moveY = (400 - videoItem.videoSize.height) / 2;
-
 
     }else{
 
@@ -134,7 +133,7 @@ function copyToZip(zipPath, imageList) {
 
                 alert("xxxx" + workPath);
                 // 删除临时文件目录
-                deleteFlider(workPath, true, function () {});
+                deleteFlider(workPath, true, true, function () {});
 
                 preview(outPutPath);
                 outPutPath = undefined;
@@ -193,19 +192,21 @@ function stepToZip(zip, currentIndex, imageList, zipPath, callback) {
     }
 }
 
-function deleteFlider(path, isFirstFolder, callback) {
+function deleteFlider(path, isFirstFolder, delFirstFolder, callback) {
 
     if(fs.existsSync(path)) {
         fs.readdirSync(path).forEach(function (file) {
 
             var curPath = nodePath.join(path, file);
             if(fs.statSync(curPath).isDirectory()) { // recurse
-                deleteFlider(curPath, false);
+                deleteFlider(curPath, false, true);
             } else { // delete file
                 fs.unlinkSync(curPath);
             }
         });
-        fs.rmdirSync(path);
+        if (!isFirstFolder || delFirstFolder) {
+            fs.rmdirSync(path);
+        }
     }
     if (isFirstFolder){
         callback();

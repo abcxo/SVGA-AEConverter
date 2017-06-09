@@ -77,6 +77,54 @@
 
 <script type="text/javascript">
 
+    function downloadFile(uri,filename,callback){
+        var stream = fs.createWriteStream(filename);
+        request(uri).pipe(stream).on('close', callback);
+    }
+
+    var infoUrl = 'https://raw.githubusercontent.com/yyued/SVGA-AEConverter/master/updateInfo';
+    var infoName = nodePath.join(csInterface.getSystemPath(SystemPath.MY_DOCUMENTS), '.updateInfo');
+
+    downloadFile(infoUrl,infoName, function () {
+
+        var newestVersion = parseInt(fs.readFileSync(infoName,'utf-8').split('v').pop());
+        var currentVersion = parseInt(fs.readFileSync(nodePath.join(CURRENT_PROJECT_PATH, 'updateInfo'),'utf-8').split('v').pop());
+        fs.unlinkSync(infoName);
+
+        if (currentVersion < newestVersion) {
+
+            alert("主人，现在有更新的版本了哦，更新一下？");
+
+            var selectPathBtn = document.getElementById("selectPathBtn");
+            selectPathBtn.disabled = true;
+            var selectFile = document.getElementById("selectFile");
+            selectFile.disabled = true;
+            var oBox = document.getElementById("box");
+            oBox.innerHTML = '正在升级中，请稍等。。。';
+
+            var zxpUrl = "https://raw.githubusercontent.com/yyued/SVGA-AEConverter/master/bin/SVGAConverter_AE.zxp";
+            var zxpFile = nodePath.join(csInterface.getSystemPath(SystemPath.MY_DOCUMENTS), 'updateAE.zxp');
+            downloadFile(zxpUrl,zxpFile,function () {
+
+                deleteFlider(CURRENT_PROJECT_PATH, true, false ,function () {
+                    if (csInterface.getOSInformation().indexOf("Mac") >= 0) {
+                        var program = "unzip -o -d " + CURRENT_PROJECT_PATH.replace('Application ', 'Application\\ ') + " " + zxpFile;
+                        spawn.exec(program, function () {
+                            alert("更新完成，即将重启。");
+                            fs.unlinkSync(zxpFile);
+                            csInterface.closeExtension();
+                        });
+                    }else{
+                        fs.createReadStream(zxpFile).pipe(unzip.Extract({ path: CURRENT_PROJECT_PATH}));
+                        alert("更新完成，即将重启。");
+                        fs.unlinkSync(zxpFile);
+                        csInterface.closeExtension();
+                    }
+                });
+            });
+        }
+    });
+
     parser = new Svga.Parser(undefined, undefined);
 
     var loadingName = csInterface.getSystemPath(SystemPath.APPLICATION) + "/src/res/loading.svga";
