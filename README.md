@@ -4,14 +4,7 @@ After Effects CC plugin for converting animations to SVGA source file.
 
 ## Installation
 
-Clone or Download the [respositories](https://github.com/yyued/SVGA-AEConverter.git)<br>
-Command Lines:
-
-```
-$ npm install
-$ npm start
-```
-
+[Click Here Download ZIP](https://github.com/yyued/SVGA-AEConverter/archive/master.zip)
 
 ### windows
 
@@ -53,14 +46,7 @@ To test whether the SVGA source file is working properly：
 
 ## 用法
 
-clone 或 download 仓库
-在项目目录下使用命令行：
-
-```
-$ npm install
-$ npm start
-```
-
+[点此下载压缩包](https://github.com/yyued/SVGA-AEConverter/archive/master.zip)
 
 ### windows
 
