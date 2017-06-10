@@ -27,6 +27,10 @@ After Effects CC plugin for converting animations to SVGA source file.
 * You can click 选择播放文件 to selete the local SVGA for preview;
 * Use the Right Button to start / pause the preview.
 
+### Allow Scripts to Write Files and Access Network
+
+Go to Edit > Preferences > General > and check on "Allow Scripts to Write Files and Access Network"
+
 ## SVGA File Test
 
 To test whether the SVGA source file is working properly：
@@ -67,6 +71,10 @@ To test whether the SVGA source file is working properly：
 * 选择 输出路径 > 开始转换 稍等片刻，SVGA 文件就会生成在您所输出的目录并开始播放;
 * 您也可以直接点击 选择播放文件 直接播放本地的 *.svga文件;
 * 使用鼠标右键可以 开始/暂停播放。
+
+### 允许脚本读取和写入文件
+
+启动 After Effects，选择菜单 编辑 > 偏好设置 > 常规 > 在 "允许脚本读取和写入文件" 一项打勾
 
 ## 测试
 
