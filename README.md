@@ -8,7 +8,7 @@ After Effects CC plugin for converting animations to SVGA source file.
 
 ### windows
 
-* Unzip windows / SVGAConverter_FL.zip;
+* Unzip windows / SVGAConverter_AE.zip;
 * Running **install.exe** -> **Install Now** ;
 * Open your After Effects and save your project which will be converted;
 * Select the **SVGA-AEConverter** extension on Window > Extensions > SVGAConverter_AE;
@@ -50,10 +50,10 @@ To test whether the SVGA source file is working properly：
 
 ### windows
 
-* 解压 windows / SVGAConverter_FL.zip;
+* 解压 windows / SVGAConverter_AE.zip;
 * 运行解压后得到的 install.exe -> Install Now 完成安装;
 * 打开 After effects 将 **被转换文件** 保存;
-* 选择菜单 > 窗口 > 扩展 > SVGAConverter_FL;
+* 选择菜单 > 窗口 > 扩展 > SVGAConverter_AE;
 * 选择 输出路径 > 开始转换 稍等片刻，SVGA 文件就会生成在您所输出的目录并开始播放;
 * 您也可以直接点击 选择播放文件 直接播放本地的 *.svga文件;
 * 使用鼠标右键可以 开始/暂停播放。
