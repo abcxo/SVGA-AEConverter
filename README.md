@@ -63,7 +63,7 @@ To test whether the SVGA source file is working properly：
 
 ### mac 
 * 下载、安装并运行 Adobe 的插件安装程序 [ZXP Installer](http://updates.aescripts.com/zxp-installer/mac/update-mac.zip);
-* 选择 菜单 > 文件 > 打开，选中 mac/SVGAConverter_FL.zxp，根据引导完成安装;
+* 选择 菜单 > 文件 > 打开，选中 mac/SVGAConverter_AE.zxp，根据引导完成安装;
 * 打开 After Effects 将 **被转换文件** 保存;
 * 选择菜单 > 窗口 > 扩展 > SVGAConverter_AE;
 * 选择 输出路径 > 开始转换 稍等片刻，SVGA 文件就会生成在您所输出的目录并开始播放;
