@@ -18,10 +18,9 @@ After Effects CC plugin for converting animations to SVGA source file.
 * Use the Right Button to start / pause the preview.
 
 ### mac 
-* Install mac / ZXPInstaller.dmg;
-* Run ZXPInstaller;
-* Drag mac/SVGAConverter.zxp to ZXPInstaller for installation;
-*  Select the **SVGA-AEConverter** extension on Window > Extensions > SVGAConverter_AE;
+* Download、install and run [ZXP Installer](http://updates.aescripts.com/zxp-installer/mac/update-mac.zip);
+* Select Menu > File > Open, select the converter installer downloaded;
+* Select the **SVGA-AEConverter** extension on Window > Extensions > SVGAConverter_AE;
 * Select 输出路径 > 开始转换 
 * Wait a moment, the SVGA source file Will be generated in the directory you choose;
 * You can click 选择播放文件 to selete the local SVGA for preview;
@@ -63,9 +62,8 @@ To test whether the SVGA source file is working properly：
 * 使用鼠标右键可以 开始/暂停播放。
 
 ### mac 
-* 安装 mac / ZXPInstaller;
-* 打开安装后的 ZXPInstaller;
-* 将 mac/SVGAConverter.zxp 拖进 ZXPInstaller 安装插件;
+* 下载、安装并运行 Adobe 的插件安装程序 [ZXP Installer](http://updates.aescripts.com/zxp-installer/mac/update-mac.zip);
+* 选择 菜单 > 文件 > 打开，选中 mac/SVGAConverter_FL.zxp，根据引导完成安装;
 * 打开 After Effects 将 **被转换文件** 保存;
 * 选择菜单 > 窗口 > 扩展 > SVGAConverter_AE;
 * 选择 输出路径 > 开始转换 稍等片刻，SVGA 文件就会生成在您所输出的目录并开始播放;
