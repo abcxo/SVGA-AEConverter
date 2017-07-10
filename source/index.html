@@ -116,13 +116,11 @@
                 selectPathBtn.disabled = true;
                 var selectFile = document.getElementById("selectFile");
                 selectFile.disabled = true;
-                $("button#selectFile").text('正在下载更新...');
 
                 var zxpUrl = "https://raw.githubusercontent.com/yyued/SVGA-AEConverter/master/build/1.1.0/SVGAConverter_AE.zxp";
                 var zxpFile = nodePath.join(csInterface.getSystemPath(SystemPath.MY_DOCUMENTS), 'updateAE.zxp');
                 downloadFile(zxpUrl,zxpFile,function () {
 
-                    $("button#selectFile").text('正在安装更新...');
                     deleteFlider(CURRENT_PROJECT_PATH, true, false ,function () {
                         if (csInterface.getOSInformation().indexOf("Mac") >= 0) {
                             var program = "unzip -o -d " + CURRENT_PROJECT_PATH.replace('Application ', 'Application\\ ') + " " + zxpFile;
