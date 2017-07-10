@@ -78,6 +78,22 @@
 
 <script type="text/javascript">
 
+    function alertMessages(message) {
+        csInterface.evalScript("alertMessage('" + message + "');");
+    }
+
+    function confirmMessages(message, callbackTrue, callbackFalse) {
+        csInterface.evalScript("confirmMessage('" + message + "');", function (result) {
+
+            if (result == 'true'){
+                callbackTrue();
+
+            }else{
+                callbackFalse();
+            }
+        });
+    }
+
     function downloadFile(uri,filename,callback){
         var stream = fs.createWriteStream(filename);
         request(uri).pipe(stream).on('close', callback);
@@ -94,54 +110,51 @@
 
         if (currentVersion < newestVersion) {
 
-            alert("主人，现在有更新的版本了哦，更新一下？");
+            confirmMessages("主人，现在有更新的版本了哦，更新一下? \\n tip: 下载过慢可以到官网下载最新版本安装哦。",function () {
 
-            var selectPathBtn = document.getElementById("selectPathBtn");
-            selectPathBtn.disabled = true;
-            var selectFile = document.getElementById("selectFile");
-            selectFile.disabled = true;
-            var oBox = document.getElementById("box");
-            oBox.innerHTML = '正在升级中，请稍等。。。';
+                var selectPathBtn = document.getElementById("selectPathBtn");
+                selectPathBtn.disabled = true;
+                var selectFile = document.getElementById("selectFile");
+                selectFile.disabled = true;
+                $("button#selectFile").text('正在下载更新...');
 
-            var zxpUrl = "https://raw.githubusercontent.com/yyued/SVGA-AEConverter/master/build/1.1.0/SVGAConverter_AE.zxp";
-            var zxpFile = nodePath.join(csInterface.getSystemPath(SystemPath.MY_DOCUMENTS), 'updateAE.zxp');
-            downloadFile(zxpUrl,zxpFile,function () {
+                var zxpUrl = "https://raw.githubusercontent.com/yyued/SVGA-AEConverter/master/build/1.1.0/SVGAConverter_AE.zxp";
+                var zxpFile = nodePath.join(csInterface.getSystemPath(SystemPath.MY_DOCUMENTS), 'updateAE.zxp');
+                downloadFile(zxpUrl,zxpFile,function () {
 
-                deleteFlider(CURRENT_PROJECT_PATH, true, false ,function () {
-                    if (csInterface.getOSInformation().indexOf("Mac") >= 0) {
-                        var program = "unzip -o -d " + CURRENT_PROJECT_PATH.replace('Application ', 'Application\\ ') + " " + zxpFile;
-                        spawn.exec(program, function () {
-                            alert("更新完成，即将重启。");
-                            fs.unlinkSync(zxpFile);
-                            csInterface.closeExtension()
-                        });
-                    }else{
-                        fs.readFile(zxpFile, function (err, data) {
-                            fs.unlinkSync(zxpFile);
-                            var new_zip = new JSZip();
-                            new_zip.loadAsync(data)
-                                .then(function(zip) {
-                                    zip.forEach(function (relativePath, file){
+                    $("button#selectFile").text('正在安装更新...');
+                    deleteFlider(CURRENT_PROJECT_PATH, true, false ,function () {
+                        if (csInterface.getOSInformation().indexOf("Mac") >= 0) {
+                            var program = "unzip -o -d " + CURRENT_PROJECT_PATH.replace('Application ', 'Application\\ ') + " " + zxpFile;
+                            spawn.exec(program, function () {
 
-                                        if (file.dir){
+                                alertMessages("更新完成，即将重启。");
 
-                                            fs.mkdirSync(nodePath.join(CURRENT_PROJECT_PATH, relativePath), 0777);
+                                fs.unlinkSync(zxpFile);
+                                csInterface.closeExtension()
+                            });
+                        }else{
 
-                                        }else{
+                            var zipToolUrl = "https://raw.githubusercontent.com/yyued/SVGA-AEConverter/master/zip.exe";
+                            var zipToolFile = nodePath.join(csInterface.getSystemPath(SystemPath.MY_DOCUMENTS), 'zip.exe');
 
-                                            zip.files[file.name].async('Base64').then(function (fileData) {
+                            downloadFile(zipToolUrl, zipToolFile, function () {
 
-                                                fs.writeFileSync(nodePath.join(CURRENT_PROJECT_PATH, relativePath), fileData, 'Base64');
-                                            });
-                                        }
-                                    });
-                                    alert("更新完成，即将重启。");
-//                                    fs.unlinkSync(zxpFile);
-                                    csInterface.closeExtension();
+                                var program = zipToolFile + " " + zxpFile + " -d " + "\"" + CURRENT_PROJECT_PATH + "\"";
+                                spawn.exec(program, function () {
+
+                                    alertMessages("更新完成，即将重启。");
+
+                                    fs.unlinkSync(zxpFile);
+                                    fs.unlinkSync(zipToolFile);
+                                    csInterface.closeExtension()
                                 });
-                        });
-                    }
+
+                            });
+                        }
+                    });
                 });
+            }, function () {
             });
         }
     });

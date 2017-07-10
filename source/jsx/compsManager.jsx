@@ -1,3 +1,11 @@
+var alertMessage = function (message) {
+    alert(message);
+}
+
+var confirmMessage = function (message) {
+    return confirm(message);
+}
+
 function searchCompositionDestination() {
 
     var uri;

@@ -38,7 +38,7 @@ function selectPath() {
 function startConvert() {
 
     if(outPutPath == null || outPutPath == undefined || outPutPath == ''){
-        alert("请先选择输出路径...");
+        alertMessages("请先选择输出路径...");
 
     }else {
         var startConvertBtn = document.getElementById("startConvertBtn");
@@ -131,7 +131,6 @@ function copyToZip(zipPath, imageList) {
             .then(function(content) {
                 window.cep.fs.writeFile (outPutPath, content, "Base64");
 
-                alert("xxxx" + workPath);
                 // 删除临时文件目录
                 deleteFlider(workPath, true, true, function () {});
 
