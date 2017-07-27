@@ -127,15 +127,17 @@ function copyToZip(zipPath, imageList) {
 
         zip.file("movie.spec", movinUTF8);
 
-        zip.generateAsync({type:"Base64"})
+        zip.generateAsync({ type: "Base64", compression: "DEFLATE" })
             .then(function(content) {
-                window.cep.fs.writeFile (outPutPath, content, "Base64");
 
-                // 删除临时文件目录
-                deleteFlider(workPath, true, true, function () {});
+                // 将文件写入本地
+                fs.writeFile(outPutPath, content, 'Base64', function (err) {
 
-                preview(outPutPath);
-                outPutPath = undefined;
+                    // 删除临时文件目录
+                    deleteFlider(workPath, true, true, function () {});
+                    preview(outPutPath);
+                    outPutPath = undefined;
+                });
             });
 
     }
@@ -164,12 +166,18 @@ function stepToZip(zip, currentIndex, imageList, zipPath, callback) {
 
                         zip.file("movie.spec", movinUTF8);
 
-                        zip.generateAsync({type:"Base64"})
+                        zip.generateAsync({ type: "Base64", compression: "DEFLATE" })
                             .then(function(content) {
-                                window.cep.fs.writeFile (outPutPath, content, "Base64");
 
-                                preview(outPutPath);
-                                outPutPath = undefined;
+                                // 将文件写入本地
+                                fs.writeFile(outPutPath, content, 'Base64', function (err) {
+
+                                    // 删除临时文件目录
+                                    deleteFlider(workPath, true, true, function () {});
+                                    preview(outPutPath);
+                                    outPutPath = undefined;
+
+                                });
                             });
 
                     }else {
