@@ -16,7 +16,7 @@ var Converter = (function () {
         this.app = app;
         this.loadProj();
         this.loadRes(app.project.activeItem.layers, app.project.activeItem.layers.length);
-        this.loadLayer(app.project.activeItem.layers, app.project.activeItem.layers.length, undefined, undefined, []);
+        this.loadLayer({ frameRate: app.project.activeItem.frameRate, duration: app.project.activeItem.duration }, app.project.activeItem.layers, app.project.activeItem.layers.length, undefined, undefined, []);
         this.mergeLayers();
     }
     Converter.prototype.loadProj = function () {
@@ -69,7 +69,7 @@ var Converter = (function () {
             }
         }
     };
-    Converter.prototype.loadLayer = function (layers, numLayers, parentValues, startTime, parents) {
+    Converter.prototype.loadLayer = function (frameConfig, layers, numLayers, parentValues, startTime, parents) {
         for (var i = 1; i <= numLayers; i++) {
             var element = layers[i];
             if (element.enabled === false) {
@@ -80,11 +80,11 @@ var Converter = (function () {
                     this.layers.push({
                         name: element.name + ".vector",
                         values: this.concatValues(parentValues, {
-                            alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
-                            layout: this.requestLayout(element.width, element.height),
-                            matrix: this.requestMatrix(element.transform, element.width, element.height, element),
-                            mask: this.requestMask(element, parents),
-                            shapes: this.requestShapes(element),
+                            alpha: this.requestAlpha(frameConfig, element.transform.opacity, element.inPoint, element.outPoint),
+                            layout: this.requestLayout(frameConfig, element.width, element.height),
+                            matrix: this.requestMatrix(frameConfig, element.transform, element.width, element.height, element),
+                            mask: this.requestMask(frameConfig, element, parents),
+                            shapes: this.requestShapes(frameConfig, element),
                         }, element.width, element.height, startTime),
                     });
                 }
@@ -92,11 +92,11 @@ var Converter = (function () {
                     this.layers.push({
                         name: element.name + ".vector",
                         values: {
-                            alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
-                            layout: this.requestLayout(element.width, element.height),
-                            matrix: this.requestMatrix(element.transform, element.width, element.height, element),
-                            mask: this.requestMask(element, parents),
-                            shapes: this.requestShapes(element),
+                            alpha: this.requestAlpha(frameConfig, element.transform.opacity, element.inPoint, element.outPoint),
+                            layout: this.requestLayout(frameConfig, element.width, element.height),
+                            matrix: this.requestMatrix(frameConfig, element.transform, element.width, element.height, element),
+                            mask: this.requestMask(frameConfig, element, parents),
+                            shapes: this.requestShapes(frameConfig, element),
                         }
                     });
                 }
@@ -118,10 +118,10 @@ var Converter = (function () {
                     this.layers.push({
                         name: eName,
                         values: this.concatValues(parentValues, {
-                            alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
-                            layout: this.requestLayout(element.width, element.height),
-                            matrix: this.requestMatrix(element.transform, element.width, element.height, element),
-                            mask: this.requestMask(element, parents),
+                            alpha: this.requestAlpha(frameConfig, element.transform.opacity, element.inPoint, element.outPoint),
+                            layout: this.requestLayout(frameConfig, element.width, element.height),
+                            matrix: this.requestMatrix(frameConfig, element.transform, element.width, element.height, element),
+                            mask: this.requestMask(frameConfig, element, parents),
                             shapes: [],
                         }, element.width, element.height, startTime),
                     });
@@ -130,10 +130,10 @@ var Converter = (function () {
                     this.layers.push({
                         name: eName,
                         values: {
-                            alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
-                            layout: this.requestLayout(element.width, element.height),
-                            matrix: this.requestMatrix(element.transform, element.width, element.height, element),
-                            mask: this.requestMask(element, parents),
+                            alpha: this.requestAlpha(frameConfig, element.transform.opacity, element.inPoint, element.outPoint),
+                            layout: this.requestLayout(frameConfig, element.width, element.height),
+                            matrix: this.requestMatrix(frameConfig, element.transform, element.width, element.height, element),
+                            mask: this.requestMask(frameConfig, element, parents),
                             shapes: [],
                         }
                     });
@@ -148,19 +148,19 @@ var Converter = (function () {
                 }
                 nextParents.push(element);
                 if (parentValues) {
-                    this.loadLayer(element.source.layers, element.source.numLayers, this.concatValues(parentValues, {
-                        alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
-                        layout: this.requestLayout(element.width, element.height),
-                        matrix: this.requestMatrix(element.transform, element.width, element.height, element),
+                    this.loadLayer({ frameRate: element.source.frameRate, duration: element.source.duration }, element.source.layers, element.source.numLayers, this.concatValues(parentValues, {
+                        alpha: this.requestAlpha(frameConfig, element.transform.opacity, element.inPoint, element.outPoint),
+                        layout: this.requestLayout(frameConfig, element.width, element.height),
+                        matrix: this.requestMatrix(frameConfig, element.transform, element.width, element.height, element),
                         mask: [],
                         shapes: [],
                     }, element.width, element.height, startTime), element.startTime, nextParents);
                 }
                 else {
-                    this.loadLayer(element.source.layers, element.source.numLayers, {
-                        alpha: this.requestAlpha(element.transform.opacity, element.inPoint, element.outPoint),
-                        layout: this.requestLayout(element.width, element.height),
-                        matrix: this.requestMatrix(element.transform, element.width, element.height, element),
+                    this.loadLayer({ frameRate: element.source.frameRate, duration: element.source.duration }, element.source.layers, element.source.numLayers, {
+                        alpha: this.requestAlpha(frameConfig, element.transform.opacity, element.inPoint, element.outPoint),
+                        layout: this.requestLayout(frameConfig, element.width, element.height),
+                        matrix: this.requestMatrix(frameConfig, element.transform, element.width, element.height, element),
                         mask: [],
                         shapes: [],
                     }, element.startTime, nextParents);
@@ -170,7 +170,7 @@ var Converter = (function () {
     };
     Converter.prototype.concatValues = function (a, b, width, height, startTime) {
         var c = JSON.parse(JSON.stringify(a));
-        var startIndex = startTime / (1.0 / Math.round(this.proj.frameRate));
+        var startIndex = Math.floor(startTime / (1.0 / Math.round(this.proj.frameRate)));
         for (var aIndex = startIndex, bIndex = 0; bIndex < b.alpha.length; aIndex++, bIndex++) {
             if (aIndex < 0) {
                 continue;
@@ -218,7 +218,7 @@ var Converter = (function () {
                 };
             }
         }
-        for (var aIndex = startIndex, bIndex = 0; bIndex < b.mask.length; aIndex++, bIndex++) {
+        for (var aIndex = startIndex, bIndex = 0; bIndex < b.shapes.length; aIndex++, bIndex++) {
             if (aIndex < 0) {
                 continue;
             }
@@ -237,10 +237,10 @@ var Converter = (function () {
         }
         return c;
     };
-    Converter.prototype.requestAlpha = function (prop, inPoint, outPoint) {
+    Converter.prototype.requestAlpha = function (frameConfig, prop, inPoint, outPoint) {
         var value = [];
         var step = 1.0 / this.proj.frameRate;
-        for (var cTime = 0.0; cTime < step * this.proj.frameCount; cTime += step) {
+        for (var cTime = 0.0; cTime < frameConfig.duration; cTime += step) {
             if (inPoint > outPoint) {
                 if (cTime > inPoint || cTime < outPoint) {
                     value.push(0.0);
@@ -253,30 +253,30 @@ var Converter = (function () {
                     continue;
                 }
             }
-            value.push(prop.valueAtTime(cTime, true) / 100.0);
+            value.push(prop.valueAtTime(cTime, false) / 100.0);
         }
         return value;
     };
-    Converter.prototype.requestMatrix = function (transform, width, height, object) {
+    Converter.prototype.requestMatrix = function (frameConfig, transform, width, height, object) {
         var value = [];
         var step = 1.0 / this.proj.frameRate;
-        for (var cTime = 0.0; cTime < step * this.proj.frameCount; cTime += step) {
-            var rotation = transform["Rotation"].valueAtTime(cTime, true);
-            var ax = transform["Anchor Point"].valueAtTime(cTime, true)[0];
-            var ay = transform["Anchor Point"].valueAtTime(cTime, true)[1];
-            var sx = transform["Scale"].valueAtTime(cTime, true)[0] / 100.0;
-            var sy = transform["Scale"].valueAtTime(cTime, true)[1] / 100.0;
-            var tx = transform["Position"].valueAtTime(cTime, true)[0];
-            var ty = transform["Position"].valueAtTime(cTime, true)[1];
+        for (var cTime = 0.0; cTime < frameConfig.duration; cTime += step) {
+            var rotation = transform["Rotation"].valueAtTime(cTime, false);
+            var ax = transform["Anchor Point"].valueAtTime(cTime, false)[0];
+            var ay = transform["Anchor Point"].valueAtTime(cTime, false)[1];
+            var sx = transform["Scale"].valueAtTime(cTime, false)[0] / 100.0;
+            var sy = transform["Scale"].valueAtTime(cTime, false)[1] / 100.0;
+            var tx = transform["Position"].valueAtTime(cTime, false)[0];
+            var ty = transform["Position"].valueAtTime(cTime, false)[1];
             var matrix = new Matrix();
             matrix.translate(-ax, -ay).scale(sx, sy).rotate(-rotation * Math.PI / 180);
             matrix.translate(tx, ty);
             var currentParent = object.parent;
             while (currentParent != null && currentParent != undefined) {
-                matrix.translate(-currentParent.transform["Anchor Point"].valueAtTime(cTime, true)[0], -currentParent.transform["Anchor Point"].valueAtTime(cTime, true)[1])
-                    .scale(currentParent.transform["Scale"].valueAtTime(cTime, true)[0] / 100.0, currentParent.transform["Scale"].valueAtTime(cTime, true)[1] / 100.0)
-                    .rotate(-(currentParent.transform["Rotation"].valueAtTime(cTime, true)) * Math.PI / 180);
-                matrix.translate(currentParent.transform["Position"].valueAtTime(cTime, true)[0], currentParent.transform["Position"].valueAtTime(cTime, true)[1]);
+                matrix.translate(-currentParent.transform["Anchor Point"].valueAtTime(cTime, false)[0], -currentParent.transform["Anchor Point"].valueAtTime(cTime, false)[1])
+                    .scale(currentParent.transform["Scale"].valueAtTime(cTime, false)[0] / 100.0, currentParent.transform["Scale"].valueAtTime(cTime, false)[1] / 100.0)
+                    .rotate(-(currentParent.transform["Rotation"].valueAtTime(cTime, false)) * Math.PI / 180);
+                matrix.translate(currentParent.transform["Position"].valueAtTime(cTime, false)[0], currentParent.transform["Position"].valueAtTime(cTime, false)[1]);
                 currentParent = currentParent.parent;
             }
             value.push({
@@ -290,34 +290,34 @@ var Converter = (function () {
         }
         return value;
     };
-    Converter.prototype.requestLayout = function (width, height) {
+    Converter.prototype.requestLayout = function (frameConfig, width, height) {
         var value = [];
         var step = 1.0 / this.proj.frameRate;
-        for (var cTime = 0.0; cTime < step * this.proj.frameCount; cTime += step) {
+        for (var cTime = 0.0; cTime < frameConfig.duration; cTime += step) {
             value.push({ x: 0, y: 0, width: width, height: height });
         }
         return value;
     };
-    Converter.prototype.requestMask = function (layer, parents) {
+    Converter.prototype.requestMask = function (frameConfig, layer, parents) {
         var hasMask = false;
         var masks = [];
         var step = 1.0 / this.proj.frameRate;
-        for (var cTime = 0.0; cTime < step * this.proj.frameCount; cTime += step) {
+        for (var cTime = 0.0; cTime < frameConfig.duration; cTime += step) {
             var d = "";
             if (layer.mask.numProperties > 0) {
                 var maskElement = layer.mask(1);
-                d += this.requestPath(maskElement.property('maskShape').valueAtTime(cTime, true), { x: 0.0, y: 0.0 });
+                d += this.requestPath(maskElement.property('maskShape').valueAtTime(cTime, false), { x: 0.0, y: 0.0 });
                 hasMask = true;
             }
-            var offsetX = layer.transform["Position"].valueAtTime(cTime, true)[0] - layer.transform["Anchor Point"].valueAtTime(cTime, true)[0];
-            var offsetY = layer.transform["Position"].valueAtTime(cTime, true)[1] - layer.transform["Anchor Point"].valueAtTime(cTime, true)[1];
+            var offsetX = layer.transform["Position"].valueAtTime(cTime, false)[0] - layer.transform["Anchor Point"].valueAtTime(cTime, false)[0];
+            var offsetY = layer.transform["Position"].valueAtTime(cTime, false)[1] - layer.transform["Anchor Point"].valueAtTime(cTime, false)[1];
             for (var index = parents.length - 1; index >= 0; index--) {
                 var element = parents[index];
                 if (element.mask.numProperties > 0) {
                     var maskElement = element.mask(1);
-                    d += this.requestPath(maskElement.property('maskShape').valueAtTime(cTime, true), { x: -offsetX, y: -offsetY });
-                    offsetX += element.transform["Position"].valueAtTime(cTime, true)[0] - element.transform["Anchor Point"].valueAtTime(cTime, true)[0];
-                    offsetY += element.transform["Position"].valueAtTime(cTime, true)[1] - element.transform["Anchor Point"].valueAtTime(cTime, true)[1];
+                    d += this.requestPath(maskElement.property('maskShape').valueAtTime(cTime, false), { x: -offsetX, y: -offsetY });
+                    offsetX += element.transform["Position"].valueAtTime(cTime, false)[0] - element.transform["Anchor Point"].valueAtTime(cTime, false)[0];
+                    offsetY += element.transform["Position"].valueAtTime(cTime, false)[1] - element.transform["Anchor Point"].valueAtTime(cTime, false)[1];
                     hasMask = true;
                 }
             }
@@ -479,10 +479,10 @@ var Converter = (function () {
         d = d.replace(/([0-9]+\.[0-9][0-9][0-9])[0-9]+/ig, "$1");
         return d;
     };
-    Converter.prototype.requestShapes = function (layer) {
+    Converter.prototype.requestShapes = function (frameConfig, layer) {
         var values = [];
         var step = 1.0 / this.proj.frameRate;
-        for (var cTime = 0.0; cTime < step * this.proj.frameCount; cTime += step) {
+        for (var cTime = 0.0; cTime < frameConfig.duration; cTime += step) {
             var value = this.requestShapesAtTime(layer, cTime);
             values.push(value);
         }
@@ -495,13 +495,13 @@ var Converter = (function () {
         }
         if (layer.matchName == "ADBE Vector Shape - Group") {
             var pathContents = layer.property('Path');
-            var path = pathContents.valueAtTime(cTime, true);
+            var path = pathContents.valueAtTime(cTime, false);
             var style = this.requestShapeStyles(layer, parent, cTime);
             var trim = { start: 0.0, end: 1.0 };
             if (style.trim != null) {
                 trim = style.trim;
             }
-            var d = this.requestPath(path, { x: 0.0, y: 0.0 }, layer.property("Shape Direction").valueAtTime(cTime, true) === 3, trim);
+            var d = this.requestPath(path, { x: 0.0, y: 0.0 }, layer.property("Shape Direction").valueAtTime(cTime, false) === 3, trim);
             var shape = {
                 type: "shape",
                 args: {
@@ -515,9 +515,9 @@ var Converter = (function () {
         }
         else if (layer.matchName == "ADBE Vector Shape - Ellipse") {
             var sizeContents = layer.property('Size');
-            var size = sizeContents.valueAtTime(cTime, true);
+            var size = sizeContents.valueAtTime(cTime, false);
             var positionContents = layer.property('Position');
-            var position = positionContents.valueAtTime(cTime, true);
+            var position = positionContents.valueAtTime(cTime, false);
             var shape = {
                 type: "ellipse",
                 args: {
@@ -533,9 +533,9 @@ var Converter = (function () {
         }
         else if (layer.matchName == "ADBE Vector Shape - Rect") {
             var sizeContents = layer.property('Size');
-            var size = sizeContents.valueAtTime(cTime, true);
+            var size = sizeContents.valueAtTime(cTime, false);
             var positionContents = layer.property('Position');
-            var position = positionContents.valueAtTime(cTime, true);
+            var position = positionContents.valueAtTime(cTime, false);
             var shape = {
                 type: "rect",
                 args: {
@@ -543,7 +543,7 @@ var Converter = (function () {
                     y: position[1] - size[1] / 2.0,
                     width: size[0],
                     height: size[1],
-                    cornerRadius: layer.property('Roundness').valueAtTime(cTime, true),
+                    cornerRadius: Math.min(size[0] / 2.0, layer.property('Roundness').valueAtTime(cTime, false)),
                 },
                 styles: this.requestShapeStyles(layer, parent, cTime),
                 transform: this.requestShapeTransform(parent, cTime),
@@ -576,18 +576,18 @@ var Converter = (function () {
                 continue;
             }
             if (sublayer.matchName == "ADBE Vector Graphic - Fill") {
-                styles.fill = sublayer.property('Color').valueAtTime(cTime, true);
+                styles.fill = sublayer.property('Color').valueAtTime(cTime, false);
             }
             else if (sublayer.matchName == "ADBE Vector Filter - Trim" || sublayer.matchName == "ADBE Vector Graphic - Trim") {
                 styles.trim = {
-                    start: sublayer.property('Start').valueAtTime(cTime, true) / 100.0,
-                    end: sublayer.property('End').valueAtTime(cTime, true) / 100.0,
+                    start: sublayer.property('Start').valueAtTime(cTime, false) / 100.0,
+                    end: sublayer.property('End').valueAtTime(cTime, false) / 100.0,
                 };
             }
             else if (sublayer.matchName == "ADBE Vector Graphic - Stroke") {
-                styles.stroke = sublayer.property('Color').valueAtTime(cTime, true);
-                styles.strokeWidth = sublayer.property('Stroke Width').valueAtTime(cTime, true);
-                var lineCap = sublayer.property('Line Cap').valueAtTime(cTime, true);
+                styles.stroke = sublayer.property('Color').valueAtTime(cTime, false);
+                styles.strokeWidth = sublayer.property('Stroke Width').valueAtTime(cTime, false);
+                var lineCap = sublayer.property('Line Cap').valueAtTime(cTime, false);
                 switch (lineCap) {
                     case 1:
                         styles.lineCap = "butt";
@@ -599,11 +599,11 @@ var Converter = (function () {
                         styles.lineCap = "square";
                         break;
                 }
-                var lineJoin = sublayer.property('Line Join').valueAtTime(cTime, true);
+                var lineJoin = sublayer.property('Line Join').valueAtTime(cTime, false);
                 switch (lineJoin) {
                     case 1:
                         styles.lineJoin = "miter";
-                        styles.miterLimit = sublayer.property('Miter Limit').valueAtTime(cTime, true);
+                        styles.miterLimit = sublayer.property('Miter Limit').valueAtTime(cTime, false);
                         break;
                     case 2:
                         styles.lineJoin = "round";
@@ -625,13 +625,13 @@ var Converter = (function () {
                                 var dashData = {};
                                 var name = '';
                                 if (dashObject.property(j + 1).matchName.indexOf('ADBE Vector Stroke Dash') !== -1) {
-                                    dash = dashObject.property(j + 1).valueAtTime(cTime, true);
+                                    dash = dashObject.property(j + 1).valueAtTime(cTime, false);
                                 }
                                 else if (dashObject.property(j + 1).matchName.indexOf('ADBE Vector Stroke Gap') !== -1) {
-                                    gap = dashObject.property(j + 1).valueAtTime(cTime, true);
+                                    gap = dashObject.property(j + 1).valueAtTime(cTime, false);
                                 }
                                 else if (dashObject.property(j + 1).matchName === 'ADBE Vector Stroke Offset') {
-                                    offset = dashObject.property(j + 1).valueAtTime(cTime, true);
+                                    offset = dashObject.property(j + 1).valueAtTime(cTime, false);
                                 }
                             }
                         }
@@ -646,13 +646,13 @@ var Converter = (function () {
     };
     Converter.prototype.requestShapeTransform = function (parent, cTime) {
         var transform = parent.property('Transform');
-        var rotation = transform["Rotation"].valueAtTime(cTime, true);
-        var ax = transform["Anchor Point"].valueAtTime(cTime, true)[0];
-        var ay = transform["Anchor Point"].valueAtTime(cTime, true)[1];
-        var sx = transform["Scale"].valueAtTime(cTime, true)[0] / 100.0;
-        var sy = transform["Scale"].valueAtTime(cTime, true)[1] / 100.0;
-        var tx = transform["Position"].valueAtTime(cTime, true)[0];
-        var ty = transform["Position"].valueAtTime(cTime, true)[1];
+        var rotation = transform["Rotation"].valueAtTime(cTime, false);
+        var ax = transform["Anchor Point"].valueAtTime(cTime, false)[0];
+        var ay = transform["Anchor Point"].valueAtTime(cTime, false)[1];
+        var sx = transform["Scale"].valueAtTime(cTime, false)[0] / 100.0;
+        var sy = transform["Scale"].valueAtTime(cTime, false)[1] / 100.0;
+        var tx = transform["Position"].valueAtTime(cTime, false)[0];
+        var ty = transform["Position"].valueAtTime(cTime, false)[1];
         var matrix = new Matrix();
         matrix.translate(-ax, -ay).scale(sx, sy).rotate(-rotation * Math.PI / 180);
         matrix.translate(tx, ty);

@@ -14,6 +14,8 @@ namespace AE {
 
     export interface Project {
         activeItem: ActiveItem;
+        frameRate: number;
+        duration: number;
     }
 
     export interface ActiveItem {
