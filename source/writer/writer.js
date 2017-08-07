@@ -12,7 +12,6 @@ var Writer = (function () {
         this.converter = converter;
         if (outputPath != null) {
             this.outPath = outputPath;
-            this.imageList = [];
         }
     }
     Writer.prototype.write = function () {

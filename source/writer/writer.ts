@@ -11,13 +11,11 @@ class Writer {
 
     converter: Converter;
     outPath: string = app.project.file.path + "/svga_works";
-    imageList: Array<string>;
 
     constructor(converter: Converter, outputPath: string) {
         this.converter = converter;
         if (outputPath != null){
             this.outPath = outputPath;
-            this.imageList = [];
         }
     }
 

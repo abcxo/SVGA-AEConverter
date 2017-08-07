@@ -50,10 +50,9 @@ function startConvert() {
             workPath = result;
 
             //获取图片资源列表
-            csInterface.evalScript("getImageList();", function (result) {
-                var imageList = JSON.parse(result);
+            fs.readdir(imagePath, function(err,files){
 
-                copyToZip(imagePath, imageList);
+                copyToZip(imagePath, files);
             });
         });
     }
@@ -196,6 +195,8 @@ function stepToZip(zip, currentIndex, imageList, zipPath, callback) {
     }else if (imageName.split('.').pop() == 'png'){
 
         pngquantAndZip(imagePath);
+    }else {
+        stepToZip(zip, ++currentIndex, imageList, zipPath);
     }
 }
 

@@ -10,7 +10,6 @@
  * Env: After Effects CC 2015
  * Build: npm install & npm start
  */
-var imageList = null;
 
 var startConvert = function (outputPath) {
 
@@ -25,12 +24,5 @@ var startConvert = function (outputPath) {
     let thisWriter = new Writer(thisConverter, path);
     thisWriter.write();
 
-    imageList = thisWriter.imageList;
     return path;
-}
-
-var getImageList = function () {
-
-    return JSON.stringify(imageList);
-
 }

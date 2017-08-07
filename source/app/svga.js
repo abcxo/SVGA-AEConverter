@@ -9,7 +9,6 @@
  * Env: After Effects CC 2015
  * Build: npm install & npm start
  */
-var imageList = null;
 var startConvert = function (outputPath) {
     //将路径和文件名称分离
     var pathArr = outputPath.split('/');
@@ -18,9 +17,5 @@ var startConvert = function (outputPath) {
     var thisConverter = new Converter(app);
     var thisWriter = new Writer(thisConverter, path);
     thisWriter.write();
-    imageList = thisWriter.imageList;
     return path;
-};
-var getImageList = function () {
-    return JSON.stringify(imageList);
 };
