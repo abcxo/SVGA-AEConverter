@@ -52,7 +52,11 @@ function startConvert() {
             //获取图片资源列表
             fs.readdir(imagePath, function(err,files){
 
-                copyToZip(imagePath, files);
+                var imageList = files;
+                if (files.length == 1){
+                    imageList = [];
+                }
+                copyToZip(imagePath, imageList);
             });
         });
     }

@@ -40,8 +40,6 @@ class Writer {
         for (var index = 0; index < this.converter.res.length; index++) {
             var element = this.converter.res[index];
 
-            this.imageList.push(element.name);
-
             if (element.psdID !== undefined) {
                 if (saved[element.psdID] === true) {
                     continue;
