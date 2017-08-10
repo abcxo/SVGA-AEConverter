@@ -177,17 +177,35 @@ var Converter = (function () {
             }
             c.alpha[aIndex] = b.alpha[bIndex] * a.alpha[aIndex];
         }
+        for (var aIndex = startIndex + b.alpha.length; aIndex < a.alpha.length; aIndex++) {
+            if (aIndex < 0) {
+                continue;
+            }
+            delete c.alpha[aIndex];
+        }
         for (var aIndex = startIndex, bIndex = 0; bIndex < b.layout.length; aIndex++, bIndex++) {
             if (aIndex < 0) {
                 continue;
             }
             c.layout[aIndex] = b.layout[bIndex];
         }
+        for (var aIndex = startIndex + b.layout.length; aIndex < a.layout.length; aIndex++) {
+            if (aIndex < 0) {
+                continue;
+            }
+            delete c.layout[aIndex];
+        }
         for (var aIndex = startIndex, bIndex = 0; bIndex < b.mask.length; aIndex++, bIndex++) {
             if (aIndex < 0) {
                 continue;
             }
             c.mask[aIndex] = b.mask[bIndex];
+        }
+        for (var aIndex = startIndex + b.mask.length; aIndex < a.mask.length; aIndex++) {
+            if (aIndex < 0) {
+                continue;
+            }
+            delete c.mask[aIndex];
         }
         for (var aIndex = startIndex, bIndex = 0; bIndex < b.matrix.length && aIndex < a.matrix.length; aIndex++, bIndex++) {
             if (aIndex < 0) {
@@ -218,6 +236,12 @@ var Converter = (function () {
                 };
             }
         }
+        for (var aIndex = startIndex + b.matrix.length; aIndex < a.matrix.length; aIndex++) {
+            if (aIndex < 0) {
+                continue;
+            }
+            delete c.matrix[aIndex];
+        }
         for (var aIndex = startIndex, bIndex = 0; bIndex < b.shapes.length; aIndex++, bIndex++) {
             if (aIndex < 0) {
                 continue;
@@ -225,6 +249,12 @@ var Converter = (function () {
             if (c.shapes != undefined && b.shapes != undefined) {
                 c.shapes[aIndex] = b.shapes[bIndex];
             }
+        }
+        for (var aIndex = startIndex + b.shapes.length; aIndex < a.shapes.length; aIndex++) {
+            if (aIndex < 0) {
+                continue;
+            }
+            delete c.shapes[aIndex];
         }
         for (var index = 0; index < startIndex; index++) {
             delete c.alpha[index];
