@@ -52,10 +52,12 @@ function startConvert() {
             //获取图片资源列表
             fs.readdir(imagePath, function(err,files){
 
-                var imageList = files;
-                if (files.length == 1){
-                    imageList = [];
+                for (var i = 0; i < files.length; i++) {
+                    if(files[i] == "movie.spec"){
+                        files.splice(i, 1);
+                    }
                 }
+                var imageList = files;
                 copyToZip(imagePath, imageList);
             });
         });
@@ -83,7 +85,6 @@ function preview(filePath) {
     parser.load("data:image/svga;base64," + file.data, function (videoItem) {
 
         previewWithVideoItems(videoItem);
-
     });
 }
 
@@ -142,7 +143,6 @@ function copyToZip(zipPath, imageList) {
                     outPutPath = undefined;
                 });
             });
-
     }
 }
 
@@ -200,8 +200,32 @@ function stepToZip(zip, currentIndex, imageList, zipPath, callback) {
 
         pngquantAndZip(imagePath);
     }else {
-        stepToZip(zip, ++currentIndex, imageList, zipPath);
+
+        if (currentIndex == imageList -1){
+            var movin = window.cep.fs.readFile(zipPath + '/movie.spec', 'Base64');
+
+            var movinUTF8 = cep.encoding.convertion.b64_to_utf8(movin.data);
+
+            zip.file("movie.spec", movinUTF8);
+
+            zip.generateAsync({ type: "Base64", compression: "DEFLATE" })
+                .then(function(content) {
+
+                    // 将文件写入本地
+                    fs.writeFile(outPutPath, content, 'Base64', function (err) {
+
+                        // 删除临时文件目录
+                        deleteFlider(workPath, true, true, function () {});
+                        preview(outPutPath);
+                        outPutPath = undefined;
+
+                    });
+                });
+        }else {
+            stepToZip(zip, ++currentIndex, imageList, zipPath);
+        }
     }
+
 }
 
 function deleteFlider(path, isFirstFolder, delFirstFolder, callback) {
