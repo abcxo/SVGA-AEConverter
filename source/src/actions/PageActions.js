@@ -13,21 +13,40 @@ var parser;
 
 var workPath;
 
+var CURRENT_SOURCE_PATH;
+var CURRENT_SOURCE_NAME;
+var CURRENT_FILE_PATH;
 var CURRENT_PROJECT_PATH = csInterface.getSystemPath(SystemPath.APPLICATION);
+var TEMP_SOURCE_PATH = nodePath.join(csInterface.getSystemPath(SystemPath.MY_DOCUMENTS), '_WORKINGTEMP_');
 
 // 关闭窗口的时候关闭服务器
 window.onunload = function()
 {
     // 删除临时文件目录
-    deleteFlider(workPath, true, true, function () {});
+    deleteFlider(TEMP_SOURCE_PATH, true, true, function () {});
+}
+
+function updateInfo(callback) {
+    csInterface.evalScript("getActiveInfo()", function (result) {
+
+        var infoArr = result.split('_and_');
+        CURRENT_FILE_PATH = infoArr[0];
+        var pathArr = infoArr[0].split(nodePath.sep);
+        pathArr.pop();
+        CURRENT_SOURCE_PATH = pathArr.join(nodePath.sep);
+        CURRENT_SOURCE_NAME = infoArr[1];
+
+        callback();
+    });
 }
 
 function selectPath() {
 
-    csInterface.evalScript("searchCompositionDestination()", function (result) {
+    updateInfo(function () {
+        var result = window.cep.fs.showSaveDialogEx ("选择保存目录", CURRENT_SOURCE_PATH, ["svga"], CURRENT_SOURCE_NAME + '.svga', '');
 
-        if (result != 'undefined'){
-            outPutPath = result;
+        if (result.data){
+            outPutPath = result.data;
 
             var startConvertBtn = document.getElementById("startConvertBtn");
             startConvertBtn.disabled = false;
@@ -41,25 +60,32 @@ function startConvert() {
         alertMessages("请先选择输出路径...");
 
     }else {
-        var startConvertBtn = document.getElementById("startConvertBtn");
-        startConvertBtn.disabled = true;
+        createTempFolder(function () {
+            var startConvertBtn = document.getElementById("startConvertBtn");
+            startConvertBtn.disabled = true;
 
-        csInterface.evalScript("startConvert('"+outPutPath +"');", function (result) {
+            csInterface.evalScript("correctMessage('"+ nodePath.join(TEMP_SOURCE_PATH, 'Temp.aep') +"');", function (result) {
 
-            var imagePath = result;
-            workPath = result;
+                csInterface.evalScript("startConvert('"+nodePath.join(TEMP_SOURCE_PATH, 'svga_works') +"');", function (result) {
 
-            //获取图片资源列表
-            fs.readdir(imagePath, function(err,files){
+                    csInterface.evalScript("openProject('"+ CURRENT_FILE_PATH +"');");
+                    var imagePath = result;
+                    workPath = result;
 
-                for (var i = 0; i < files.length; i++) {
-                    if(files[i] == "movie.spec"){
-                        files.splice(i, 1);
-                    }
-                }
-                var imageList = files;
-                copyToZip(imagePath, imageList);
+                    //获取图片资源列表
+                    fs.readdir(imagePath, function(err,files){
+
+                        for (var i = 0; i < files.length; i++) {
+                            if(files[i] == "movie.spec"){
+                                files.splice(i, 1);
+                            }
+                        }
+                        var imageList = files;
+                        copyToZip(imagePath, imageList);
+                    });
+                });
             });
+
         });
     }
 }
@@ -73,6 +99,18 @@ function selectFile() {
 
             preview(result);
         }
+    });
+}
+
+function createTempFolder(callback) {
+
+    // 删除临时文件目录
+    deleteFlider(TEMP_SOURCE_PATH, true, true, function () {
+
+        // 创建 temp 文件夹
+        fs.mkdir(TEMP_SOURCE_PATH, function () {
+            callback();
+        });
     });
 }
 
@@ -94,7 +132,6 @@ function previewWithVideoItems(videoItem) {
     var moveY = 0;
 
     if (videoItem.videoSize.width <= 400 && videoItem.videoSize.height <= 400){
-
 
     }else{
 
@@ -137,8 +174,8 @@ function copyToZip(zipPath, imageList) {
                 // 将文件写入本地
                 fs.writeFile(outPutPath, content, 'Base64', function (err) {
 
-                    // 删除临时文件目录
-                    deleteFlider(workPath, true, true, function () {});
+                    // 删除 temp 目录
+                    deleteFlider(TEMP_SOURCE_PATH, true, true, function () {});
                     preview(outPutPath);
                     outPutPath = undefined;
                 });
@@ -175,8 +212,7 @@ function stepToZip(zip, currentIndex, imageList, zipPath, callback) {
                                 // 将文件写入本地
                                 fs.writeFile(outPutPath, content, 'Base64', function (err) {
 
-                                    // 删除临时文件目录
-                                    deleteFlider(workPath, true, true, function () {});
+                                    deleteFlider(TEMP_SOURCE_PATH, true, true, function () {});
                                     preview(outPutPath);
                                     outPutPath = undefined;
 
@@ -214,8 +250,7 @@ function stepToZip(zip, currentIndex, imageList, zipPath, callback) {
                     // 将文件写入本地
                     fs.writeFile(outPutPath, content, 'Base64', function (err) {
 
-                        // 删除临时文件目录
-                        deleteFlider(workPath, true, true, function () {});
+                        deleteFlider(TEMP_SOURCE_PATH, true, true, function () {});
                         preview(outPutPath);
                         outPutPath = undefined;
 
