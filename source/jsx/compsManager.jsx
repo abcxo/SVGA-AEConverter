@@ -23,7 +23,7 @@ function correctMessage(path) {
 
     if(app.project.activeItem.workAreaDuration != app.project.activeItem.duration){
         var newDuration = parseFloat(app.project.activeItem.workAreaStart.toFixed(2)) + parseFloat(app.project.activeItem.workAreaDuration.toFixed(2));
-        if (confirmMessage("动画时长与工作区时长不同。                                                                               是否按照工作区将动画时长设置为：" + newDuration + "  秒 ？")){
+        if (confirmMessage("动画时长与工作区时长不同。\n是否按照工作区将动画时长设置为：" + newDuration + "  秒 ？")){
             app.project.activeItem.duration = newDuration;
         }
     }
