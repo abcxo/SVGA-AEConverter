@@ -9,7 +9,7 @@ var confirmMessage = function (message) {
 function getActiveInfo() {
 
     app.project.save();
-    var path = app.project.file.fullName + '_and_' + app.project.activeItem.name;
+    var path = app.project.file.fsName + '_and_' + app.project.activeItem.name;
     return path;
 }
 
@@ -20,6 +20,15 @@ function correctMessage(path) {
     app.open(file)
 
     var myItems = app.project.items;
+
+    if(app.project.activeItem.workAreaDuration != app.project.activeItem.duration){
+        if (confirmMessage("动画时长与工作区时长不同。                                                                               是否按照工作区将动画时长设置为：" + app.project.activeItem.workAreaDuration.toFixed(2) + "  秒 ？")){
+            app.project.activeItem.duration = app.project.activeItem.workAreaDuration;
+        }
+    }
+
+
+
     var legalFPS = [1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 60];
     var lastSum = 0;
     var lastCorrectSum = 0;
