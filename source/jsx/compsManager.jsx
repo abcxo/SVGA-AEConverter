@@ -22,12 +22,11 @@ function correctMessage(path) {
     var myItems = app.project.items;
 
     if(app.project.activeItem.workAreaDuration != app.project.activeItem.duration){
-        if (confirmMessage("动画时长与工作区时长不同。                                                                               是否按照工作区将动画时长设置为：" + app.project.activeItem.workAreaDuration.toFixed(2) + "  秒 ？")){
-            app.project.activeItem.duration = app.project.activeItem.workAreaDuration;
+        var newDuration = parseFloat(app.project.activeItem.workAreaStart.toFixed(2)) + parseFloat(app.project.activeItem.workAreaDuration.toFixed(2));
+        if (confirmMessage("动画时长与工作区时长不同。                                                                               是否按照工作区将动画时长设置为：" + newDuration + "  秒 ？")){
+            app.project.activeItem.duration = newDuration;
         }
     }
-
-
 
     var legalFPS = [1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 60];
     var lastSum = 0;
