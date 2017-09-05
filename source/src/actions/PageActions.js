@@ -64,7 +64,14 @@ function startConvert() {
             var startConvertBtn = document.getElementById("startConvertBtn");
             startConvertBtn.disabled = true;
 
-            csInterface.evalScript("correctMessage('"+ nodePath.join(TEMP_SOURCE_PATH, 'Temp.aep') +"');", function (result) {
+            var tempPath =  nodePath.join(TEMP_SOURCE_PATH, 'Temp.aep');
+            var OSVersion = csInterface.getOSInformation();
+            if (OSVersion.indexOf("Windows") >= 0){
+
+                tempPath =  tempPath.split("\\").join("\\\\");
+                CURRENT_FILE_PATH =  CURRENT_FILE_PATH.split("\\").join("\\\\");
+            }
+            csInterface.evalScript("correctMessage('"+ tempPath +"');", function (result) {
 
                 csInterface.evalScript("startConvert('"+nodePath.join(TEMP_SOURCE_PATH, 'svga_works') +"');", function (result) {
 
