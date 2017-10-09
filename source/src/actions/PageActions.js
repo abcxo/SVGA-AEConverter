@@ -125,6 +125,7 @@ function copyToBinary(zipPath, imageList) {
     } else {
         // 没有图片
         var spec = JSON.parse(fs.readFileSync(zipPath + '/movie.spec', { encoding: "utf-8" }));
+
         var stream = new Buffer(SVGAProtoHelper_2_0_0.convertToProto(spec, fileMapping));
         fs.writeFileSync(outPutPath, zlib.deflateSync(stream));
         // 删除临时文件目录
@@ -132,25 +133,6 @@ function copyToBinary(zipPath, imageList) {
         });
         preview(outPutPath);
         outPutPath = undefined;
-
-        // var movin = window.cep.fs.readFile(zipPath + '/movie.spec', 'Base64');
-        //
-        // var movinUTF8 = cep.encoding.convertion.b64_to_utf8(movin.data);
-        //
-        // zip.file("movie.spec", movinUTF8);
-        //
-        // zip.generateAsync({ type: "Base64", compression: "DEFLATE" })
-        //     .then(function(content) {
-        //
-        //         // 将文件写入本地
-        //         fs.writeFile(outPutPath, content, 'Base64', function (err) {
-        //
-        //             // 删除临时文件目录
-        //             deleteFlider(workPath, true, true, function () {});
-        //             preview(outPutPath);
-        //             outPutPath = undefined;
-        //         });
-        //     });
     }
 }
 
@@ -166,7 +148,8 @@ function stepToBinary(fileMapping, currentIndex, imageList, zipPath, callback) {
 
                 fs.readFile(imagePath, function (err, data) {
 
-                    fileMapping[imageName] = toArrayBuffer(data);
+
+                    fileMapping[imageName.split('.')[0]] = toArrayBuffer(data);
 
                     if (currentIndex == imageList.length - 1){
 
@@ -208,7 +191,7 @@ function stepToBinary(fileMapping, currentIndex, imageList, zipPath, callback) {
             outPutPath = undefined;
 
         }else {
-            stepToZip(zip, ++currentIndex, imageList, zipPath);
+            stepToBinary(fileMapping, ++currentIndex, imageList, zipPath);
         }
     }
 
