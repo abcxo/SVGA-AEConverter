@@ -18,6 +18,7 @@ var CURRENT_SOURCE_NAME;
 var CURRENT_FILE_PATH;
 var CURRENT_PROJECT_PATH = csInterface.getSystemPath(SystemPath.APPLICATION);
 var TEMP_SOURCE_PATH = nodePath.join(csInterface.getSystemPath(SystemPath.MY_DOCUMENTS), '_WORKINGTEMP_');
+var CURRENT_OUTPUT_VERSION = "2.0";
 
 // 关闭窗口的时候关闭服务器
 window.onunload = function()
@@ -50,8 +51,16 @@ function selectPath() {
 
             var startConvertBtn = document.getElementById("startConvertBtn");
             startConvertBtn.disabled = false;
+            var dropDownBtn = document.getElementById("dropDownBtn");
+            dropDownBtn.disabled = false;
         }
     });
+}
+
+function openMenu() {
+    
+    document.getElementById("dropGroupDiv").className = document.getElementById("dropGroupDiv").className == "col-md-5 btn-group" ? "col-md-5 btn-group open" : "col-md-5 btn-group";
+
 }
 
 function startConvert() {
@@ -63,6 +72,9 @@ function startConvert() {
         createTempFolder(function () {
             var startConvertBtn = document.getElementById("startConvertBtn");
             startConvertBtn.disabled = true;
+            
+            var dropDownBtn = document.getElementById("dropDownBtn");
+            dropDownBtn.disabled = true;
 
             var tempPath =  nodePath.join(TEMP_SOURCE_PATH, 'Temp.aep');
             var OSVersion = csInterface.getOSInformation();
@@ -95,6 +107,12 @@ function startConvert() {
 
         });
     }
+}
+
+function changeToVersion(version){
+    CURRENT_OUTPUT_VERSION = version;
+    var startConvertBtn = document.getElementById("startConvertBtn");
+    startConvertBtn.innerHTML = "开始转换 - " + version;
 }
 
 function selectFile() {
@@ -172,10 +190,11 @@ function copyToZip(zipPath, imageList) {
         var movin = window.cep.fs.readFile(zipPath + '/movie.spec', 'Base64');
         var movinUTF8 = cep.encoding.convertion.b64_to_utf8(movin.data);
         var movinObject = JSON.parse(movinUTF8);
-        var movinProtoBuf = new Buffer(SVGAProtoHelper_1_5_0.convertToProto(movinObject));
-
         zip.file("movie.spec", movinUTF8);
-        zip.file("movie.binary", movinProtoBuf);
+        if(CURRENT_OUTPUT_VERSION == "1.5"){
+            var movinProtoBuf = new Buffer(SVGAProtoHelper_1_5_0.convertToProto(movinObject));
+            zip.file("movie.binary", movinProtoBuf);
+        }
 
         zip.generateAsync({ type: "Base64", compression: "DEFLATE" })
             .then(function(content) {
@@ -212,10 +231,12 @@ function stepToZip(zip, currentIndex, imageList, zipPath, callback) {
                         var movin = window.cep.fs.readFile(zipPath + '/movie.spec', 'Base64');
                         var movinUTF8 = cep.encoding.convertion.b64_to_utf8(movin.data);
                         var movinObject = JSON.parse(movinUTF8);
-                        var movinProtoBuf = new Buffer(SVGAProtoHelper_1_5_0.convertToProto(movinObject));
-
                         zip.file("movie.spec", movinUTF8);
-                        zip.file("movie.binary", movinProtoBuf);
+
+                        if(CURRENT_OUTPUT_VERSION == "1.5"){
+                            var movinProtoBuf = new Buffer(SVGAProtoHelper_1_5_0.convertToProto(movinObject));
+                            zip.file("movie.binary", movinProtoBuf);
+                        }
 
                         zip.generateAsync({ type: "Base64", compression: "DEFLATE" })
                             .then(function(content) {
@@ -252,10 +273,12 @@ function stepToZip(zip, currentIndex, imageList, zipPath, callback) {
             var movin = window.cep.fs.readFile(zipPath + '/movie.spec', 'Base64');
             var movinUTF8 = cep.encoding.convertion.b64_to_utf8(movin.data);
             var movinObject = JSON.parse(movinUTF8);
-            var movinProtoBuf = new Buffer(SVGAProtoHelper_1_5_0.convertToProto(movinObject));
-
             zip.file("movie.spec", movinUTF8);
-            zip.file("movie.binary", movinProtoBuf);
+
+            if(CURRENT_OUTPUT_VERSION == "1.5"){
+                var movinProtoBuf = new Buffer(SVGAProtoHelper_1_5_0.convertToProto(movinObject));
+                zip.file("movie.binary", movinProtoBuf);
+            }
 
             zip.generateAsync({ type: "Base64", compression: "DEFLATE" })
                 .then(function(content) {
@@ -273,7 +296,6 @@ function stepToZip(zip, currentIndex, imageList, zipPath, callback) {
             stepToZip(zip, ++currentIndex, imageList, zipPath);
         }
     }
-
 }
 
 function deleteFlider(path, isFirstFolder, delFirstFolder, callback) {

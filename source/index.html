@@ -37,8 +37,46 @@
         float: left;
     }
 
+    .col-md-5{
+        float: left;
+        position:relative;
+        min-height:1px;
+        padding-right:15px;
+        padding-left:15px
+    }
+
     .progressBarDiv{
         margin-top: 24px;
+    }
+    
+    .dropDownItem{
+        margin-left: 24px;
+    }
+    
+    #startConvertBtn{
+        float: left;
+        width: 110px;
+
+    }
+
+    #dropDownBtn{
+        float: left;
+        height: 34px;
+        margin-left: 1px;
+    }
+
+    #dropGroupDiv{
+        
+    }
+
+    #selectFile{
+        margin-left: 6px;
+    }
+
+    #dropDownMenu{
+        text-align: left;
+        left: 12 !important;
+        width: 140px;
     }
 
 </style>
@@ -52,12 +90,20 @@
         <div class="col-md-4 column">
             <button type="button" class="btn btn-default btn-block btn-success" id="selectPathBtn" onclick="selectPath()">输出路径</button>
         </div>
-        <div class="col-md-4 column">
-            <button type="button" class="btn btn-default btn-block btn-success" id="startConvertBtn" disabled onclick="startConvert()">开始转换</button>
-        </div>
-
-        <div class="col-md-4 column">
-            <sub>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</sub>
+        <div id="dropGroupDiv" class="col-md-5 btn-group">
+            <button type="button" class="btn btn-default btn-block btn-success" id="startConvertBtn" disabled onclick="startConvert()">开始转换 - 2.0</button>
+            <button data-toggle="dropdown" class="btn dropdown-toggle btn-success" id="dropDownBtn" disabled onclick="openMenu()"><span class="caret"></span></button>
+            <ul id="dropDownMenu" class="dropdown-menu">
+                <li>
+                    <a class="dropDownItem" href="javascript:void(0)" onclick="changeToVersion('1.0')">SVGA - 1.0</a>
+                </li>
+                <li>
+                    <a class="dropDownItem" href="javascript:void(0)" onclick="changeToVersion('1.5')">SVGA - 1.5</a>
+                </li>
+                <li>
+                    <a class="dropDownItem" href="javascript:void(0)" onclick="changeToVersion('2.0')">SVGA - 2.0</a>
+                </li>
+            </ul>
         </div>
 
         <div class="col-md-4 column">
@@ -77,6 +123,11 @@
 </div>
 
 <script type="text/javascript">
+    document.onclick=function(e){
+        if (e.target.id != "dropDownBtn"){
+            document.getElementById("dropGroupDiv").className = "col-md-5 btn-group";
+        }
+    }
 
     function alertMessages(message) {
         csInterface.evalScript("alertMessage('" + message + "');");
