@@ -10,8 +10,8 @@
     <script src="./src/actions/PageActions.js"></script>
     <script src="./src/assets/pngquant.min.js"></script>
     <script src="./src/assets/jszip.min.js"></script>
+    <script src="./src/assets/jszip-utils.min.js"></script>
     <script src="./src/assets/svga.min.js"></script>
-
     <script type="text/javascript">
         loadJSX("compsManager.jsx");
     </script>
@@ -207,20 +207,17 @@
             });
         }
     });
-
-    parser = new Svga.Parser(undefined, undefined);
+    parser = new SVGA.Parser();
 
     var loadingName = csInterface.getSystemPath(SystemPath.APPLICATION) + "/src/res/loading.svga";
 
-    var file = window.cep.fs.readFile(loadingName, "Base64");
-
-    parser.load("data:image/svga;base64," + file.data, function (videoItem) {
+    parser.load(loadingName, function (videoItem) {
 
         player = new Svga.Player('#canvas');
 
-        previewWithVideoItems(videoItem);
-
-    });
+        player.setVideoItem(videoItem);
+        player.startAnimation()
+    })
 
     /// 右键菜单。
     csInterface.setContextMenu(

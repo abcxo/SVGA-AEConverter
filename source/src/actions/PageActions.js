@@ -1,10 +1,9 @@
 var csInterface = new CSInterface();
 var nodePath = require("path");
 var fs = require('fs');
-
-var spawn = require("child_process");
+var zlib = require('zlib');
+var spawn = require('child_process');
 var request = require('request');
-var unzip = require("unzip");
 
 var outPutPath;
 var inputPath;
@@ -148,39 +147,11 @@ function preview(filePath) {
 
     var fileName = filePath;
 
-    var file = window.cep.fs.readFile(fileName, "Base64");
+    parser.load(fileName, function (videoItem) {
+        player.setVideoItem(videoItem);
+        player.startAnimation()
+    })
 
-
-    parser.load("data:svga/2.0;base64," + file.data, function (videoItem) {
-
-        previewWithVideoItems(videoItem);
-    });
-}
-
-function previewWithVideoItems(videoItem) {
-    var scale = 1;
-    var moveX = 0;
-    var moveY = 0;
-
-    if (videoItem.videoSize.width <= 400 && videoItem.videoSize.height <= 400){
-
-    }else{
-
-        if (videoItem.videoSize.width > videoItem.videoSize.height){
-
-            moveY = (400 - (videoItem.videoSize.height / videoItem.videoSize.width) * 400) / 2;
-
-        }else{
-
-            scale = (videoItem.videoSize.width / videoItem.videoSize.height);
-            moveX = ((400 - 400 * scale)) / 2;
-        }
-    }
-
-    player.setVideoItem(videoItem);
-    player._stageLayer.setTransform(moveX, moveY, scale, scale);
-
-    player.startAnimation();
 }
 
 function copyToBinary(zipPath, imageList) {
@@ -215,17 +186,16 @@ function stepToBinary(fileMapping, currentIndex, imageList, zipPath, callback) {
 
                 fs.readFile(imagePath, function (err, data) {
 
-
                     fileMapping[imageName.split('.')[0]] = toArrayBuffer(data);
 
                     if (currentIndex == imageList.length - 1){
 
                         var spec = JSON.parse(fs.readFileSync(zipPath + '/movie.spec', { encoding: "utf-8" }));
                         var stream = new Buffer(SVGAProtoHelper_2_0_0.convertToProto(spec, fileMapping));
+
                         fs.writeFileSync(outPutPath, zlib.deflateSync(stream));
                         // 删除临时文件目录
-                        deleteFlider(workPath, true, true, function () {
-                        });
+                        deleteFlider(workPath, true, true, function () {});
                         preview(outPutPath);
                         outPutPath = undefined;
 
@@ -261,7 +231,6 @@ function stepToBinary(fileMapping, currentIndex, imageList, zipPath, callback) {
             stepToBinary(fileMapping, ++currentIndex, imageList, zipPath);
         }
     }
-
 }
 
 function copyToZip(zipPath, imageList) {
