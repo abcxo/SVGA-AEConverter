@@ -1,6 +1,6 @@
 var csInterface = new CSInterface();
-var nodePath = require("path");
 var fs = require('fs');
+var nodePath = require("path");
 var zlib = require('zlib');
 var spawn = require('child_process');
 var request = require('request');
@@ -151,7 +151,6 @@ function preview(filePath) {
         player.setVideoItem(videoItem);
         player.startAnimation()
     })
-
 }
 
 function copyToBinary(zipPath, imageList) {
