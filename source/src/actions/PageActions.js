@@ -149,7 +149,7 @@ function preview(filePath) {
 
     parser.load(fileName, function (videoItem) {
         player.setVideoItem(videoItem);
-        player.startAnimation()
+        player.startAnimation();
     })
 }
 
