@@ -148,6 +148,9 @@ function preview(filePath) {
     var fileName = filePath;
 
     parser.load(fileName, function (videoItem) {
+        player.setContentMode("AspectFit");
+        player.setClipsToBounds(true);
+        
         player.setVideoItem(videoItem);
         player.startAnimation();
     })
